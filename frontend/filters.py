@@ -12,10 +12,7 @@ col1, col2, col3 = st.columns(3)
 countries = sorted(df["country"].unique()) # list of countries
 
 with col1:
-    country = st.selectbox(
-        "Search Country",
-        countries
-    )
+    country = st.selectbox("Search Country", countries)
 
 # Filter dropdowns
 industries = sorted(df["industry"].unique()) # list of industries
