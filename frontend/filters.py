@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # load dummy dataset
-df = pd.read_csv("dummy_dataset.csv", keep_default_na = False)
+df = pd.read_csv("frontend\dummy_dataset.csv", keep_default_na = False)
 
 st.title("test filters")
 
