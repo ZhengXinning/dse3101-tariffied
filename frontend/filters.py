@@ -6,19 +6,10 @@ df = pd.read_csv("frontend\dummy_dataset.csv", keep_default_na = False)
 
 st.title("test filters")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns(3) # arrangement of filters
 
 # Country Searchbox
 countries = sorted(df["country"].unique()) # list of countries
-
-top5 = (
-    df.groupby("country")["trade_value"]
-    .sum()
-    .sort_values(ascending=False)
-    .head(5)
-    .index
-    .tolist()
-)
 
 with col1:
     country = st.selectbox(" ", ["Search Country"] + countries)
@@ -34,15 +25,25 @@ with col3:
     region = st.selectbox("Region", regions)
 
 # Filtering results
-filtered = df
-if country == "Search Country":
-    filtered = filtered[(filtered["country"].isin(top5))]
-else: 
-    filtered = filtered[(filtered["country"] == country)]
-if industry != "All":
+filtered = df.copy()
+
+if industry != "All": # filter by industry
     filtered = filtered[filtered["industry"] == industry]
-if region != "All":
+
+if region != "All": # filter by region
     filtered = filtered[filtered["region"] == region]
+
+if country != "Search Country": # filter by country
+    filtered = filtered[filtered["country"] == country]
+else: # if no country selected, show top 5 countries by trade value
+    top5_countries = (
+        filtered.groupby("country")["trade_value"]
+        .sum()
+        .sort_values(ascending=False)
+        .head(5)
+        .index
+    )
+    filtered = filtered[filtered["country"].isin(top5_countries)]
 
 # checking - TO REMOVE LATER
 st.write(filtered)
