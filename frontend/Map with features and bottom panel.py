@@ -428,7 +428,8 @@ with col1:
         template="plotly_white",
         font=dict(size=12),
         margin=dict(l=10, r=10, t=20, b=10),
-        showlegend=False
+        showlegend=False,
+        height = 300
     )
 
     st.plotly_chart(fig1, use_container_width=True)
@@ -458,7 +459,8 @@ with col2:
         template="plotly_white",
         font=dict(size=12),
         margin=dict(l=10, r=10, t=20, b=10),
-        showlegend=False
+        showlegend=False,
+        height = 300
     )
 
     st.plotly_chart(fig2, use_container_width=True)
