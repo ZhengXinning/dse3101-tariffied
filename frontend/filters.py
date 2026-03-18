@@ -1,8 +1,12 @@
 import streamlit as st
 import pandas as pd
+from pathlib import Path
 
 # load dummy dataset
-df = pd.read_csv("frontend\dummy_dataset.csv", keep_default_na = False)
+BASE_DIR = Path(__file__).resolve().parent
+file_path = BASE_DIR / "dummy_dataset.csv"
+
+df = pd.read_csv(file_path, keep_default_na=False)
 
 st.title("test filters")
 

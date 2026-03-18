@@ -6,9 +6,14 @@ from streamlit_folium import st_folium
 import folium
 from folium.plugins import AntPath
 
+from pathlib import Path
 
-#load dummy dataset
-df= pd.read_csv("frontend\dummy_dataset.csv", keep_default_na = False)
+# load dummy dataset
+BASE_DIR = Path(__file__).resolve().parent
+file_path = BASE_DIR / "dummy_dataset.csv"
+
+df = pd.read_csv(file_path, keep_default_na=False)
+
 st.title("Map")
 #Create Map
 m= folium.Map(location=[30,-120], zoom_start=1)
