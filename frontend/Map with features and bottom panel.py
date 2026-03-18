@@ -63,14 +63,50 @@ Identify high-potential trade partners based on compatibility and sector strengt
 </div>
 """, unsafe_allow_html=True)
 
+col1, col2, col3 = st.columns(3) 
+
+# Country Searchbox
+countries = sorted(df["country"].unique()) # list of countries
+
+with col1:
+    country = st.selectbox(" ", ["Search Country"] + countries)
 
 # -------------------------------
 # Industry Filter
 # -------------------------------
-selected_industry = st.selectbox(
-    "Filter Industry",
-    sorted(df['industry'].unique())
-)
+with col2:
+    selected_industry = st.selectbox(
+        "Industry",
+        ["All"] + sorted(df['industry'].unique())
+    )
+
+# region searchbox
+regions = ["All"] + sorted(df["region"].unique()) # list of regions
+
+with col3:
+    region = st.selectbox("Region", regions)
+
+# Filtering results
+filtered = df.copy()
+
+if selected_industry != "All": # filter by industry
+    filtered = filtered[filtered["industry"] == selected_industry]
+
+if region != "All": # filter by region
+    filtered = filtered[filtered["region"] == region]
+
+if country != "Search Country": # filter by country
+    filtered = filtered[filtered["country"] == country]
+else: # if no country selected, show top 5 countries by trade value
+    top5_countries = (
+        filtered.groupby("country")["trade_value"]
+        .sum()
+        .sort_values(ascending=False)
+        .head(5)
+        .index
+    )
+    filtered = filtered[filtered["country"].isin(top5_countries)]
+
 
 # -------------------------------
 # Create base map
@@ -391,87 +427,111 @@ st_folium(m, use_container_width=True, height=550)
 # -------------------------------
 # Charts section
 # -------------------------------
-st.markdown("### Trade Insights")
-st.markdown(
-    '<div class="subtitle">Comparison of partner strength and sector activity</div>',
-    unsafe_allow_html=True
-)
-
-col1, col2 = st.columns(2)
-
-# Chart 1
-with col1:
-    top5_chart_df = (
-        df_filtered[df_filtered['country'].isin(top5)]
-        .groupby('country', as_index=False)
-        .agg({'compatibility_score':'mean'})
-    )
-    # Add color column
-    top5_chart_df['color'] = top5_chart_df['compatibility_score'].apply(get_color)
-
-    fig1 = px.bar(
-        top5_chart_df.sort_values('compatibility_score'),
-        x='compatibility_score',
-        y='country',
-        orientation='h',
-        text='compatibility_score',
-        labels={
-            'compatibility_score': 'Compatibility Score',
-            'country': 'Country'
-        },
-        color='color',
-        color_discrete_map="identity"
+with st.expander("", expanded=True):        
+    st.markdown("### Trade Insights")
+    st.markdown(
+        '<div class="subtitle">Comparison of partner strength and sector activity</div>',
+        unsafe_allow_html=True
     )
 
-    fig1.update_traces(textposition="outside", textfont_size=10)
-    fig1.update_layout(
-        template="plotly_white",
-        font=dict(size=12),
-        margin=dict(l=10, r=10, t=20, b=10),
-        showlegend=False,
-        height = 300
+    col1, col2 = st.columns(2)
+
+    # Chart 1
+    with col1:
+        chart_data = (
+        filtered.groupby("country")
+        .agg(
+            compatibility_score=("compatibility_score", "mean"),
+            trade_value=("trade_value", "sum"),
+        )
+        .reset_index()
     )
+ 
+    # checking for filters
+        if country != "Search Country":
+            chart_countries = chart_data
+            best_trade_country = country
+        else:
+            top5 = (
+                chart_data.nlargest(5, "trade_value")["country"].tolist()
+            )
+            chart_countries = chart_data[chart_data["country"].isin(top5)]
+            best_trade_country = chart_countries.sort_values("trade_value", ascending=False).iloc[0]["country"]
+        
+        chart_countries = chart_countries.sort_values("trade_value", ascending=False)
+        chart_sorted = chart_countries.copy()
+        chart_sorted["compatibility_score"] = (chart_countries["compatibility_score"] * 100).round(0).astype(int)
+        
+        # colour coding for compatibility score 
+        def score_colour(s):
+            if s < 40:
+                return "#e05252"   
+            elif s <= 70:
+                return "#f0c040"   
+            else:
+                return "#4caf7d"   
+        
+        chart_sorted = chart_sorted.sort_values('compatibility_score')
+        chart_sorted['colour'] = chart_sorted['compatibility_score'].apply(score_colour)
 
-    st.plotly_chart(fig1, use_container_width=True)
+        fig1 = px.bar(
+            chart_sorted.sort_values('compatibility_score'),
+            x='compatibility_score',
+            y='country',
+            orientation='h',
+            text='compatibility_score',
+            labels={
+                'compatibility_score': 'Compatibility Score',
+                'country': 'Country'
+            },
+            color='colour',
+            color_discrete_map='identity',
+        )
 
-# Chart 2
-with col2:
-    industry_df = (df_filtered[
-        (df_filtered['country'].isin(top5)) &
-        (df_filtered['industry'] == selected_industry)
-    ]
-    ).sort_values('trade_value', ascending=True)
+        fig1.update_traces(textposition="outside", textfont_size=10)
+        fig1.update_layout(
+            template="plotly_white",
+            font=dict(size=12),
+            margin=dict(l=10, r=10, t=20, b=10),
+            showlegend=False,
+            height = 300
+        )
 
-    fig2 = px.bar(
-        industry_df,
-        x='trade_value',
-        y='country',
-        orientation='h',
-        text='trade_value',
-        labels={
-            'trade_value': f'{selected_industry} Trade Volume (kg/month)',
-            'country': 'Country'
-        }
+        st.plotly_chart(fig1, use_container_width=True)
+
+    # Chart 2
+    with col2:
+        fig2 = px.bar(
+            chart_sorted,
+            x='trade_value',
+            y='country',
+            orientation='h',
+            text='trade_value',
+            labels={
+                'trade_value': f'{selected_industry} Trade Volume (kg/month)',
+                'country': 'Country'
+            }
+        )
+
+        fig2.update_traces(textposition="outside", textfont_size=10)
+        fig2.update_layout(
+            template="plotly_white",
+            font=dict(size=12),
+            margin=dict(l=10, r=10, t=20, b=10),
+            showlegend=False,
+            height = 300
+        )
+
+        st.plotly_chart(fig2, use_container_width=True)
+
+    # -------------------------------
+    # Interpretation
+    # -------------------------------
+    st.markdown("### Interpretation")
+    most_compat_country = chart_sorted.iloc[-1]["country"]
+
+    st.info(
+        f"{most_compat_country} emerges as the strongest partner based on compatibility scores. "
+        f"The selected industry ({selected_industry}) shows varying trade intensity across countries, "
+        "highlighting potential specialization opportunities."
     )
-
-    fig2.update_traces(textposition="outside", textfont_size=10)
-    fig2.update_layout(
-        template="plotly_white",
-        font=dict(size=12),
-        margin=dict(l=10, r=10, t=20, b=10),
-        showlegend=False,
-        height = 300
-    )
-
-    st.plotly_chart(fig2, use_container_width=True)
-
-# -------------------------------
-# Interpretation
-# -------------------------------
-st.markdown("### Interpretation")
-
-st.info(
-    f"{top5[0]} emerges as the strongest partner based on compatibility scores. "
-    f"The selected industry ({selected_industry}) shows varying trade intensity across countries, "
-    "highlighting potential specialization opportunities."
-)
