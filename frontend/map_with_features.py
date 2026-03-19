@@ -71,22 +71,22 @@ countries = sorted(df["country"].unique()) # list of countries
 with col1:
     country = st.selectbox(" ", ["Search Country"] + countries)
 
-# -------------------------------
-# Industry Filter
-# -------------------------------
+# Industry Searchbox
 with col2:
     selected_industry = st.selectbox(
         "Industry",
         ["All"] + sorted(df['industry'].unique())
     )
 
-# region searchbox
+# Region Searchbox
 regions = ["All"] + sorted(df["region"].unique()) # list of regions
 
 with col3:
     region = st.selectbox("Region", regions)
 
+# -------------------------------
 # Filtering results
+# -------------------------------
 filtered = df.copy()
 
 if selected_industry != "All": # filter by industry
@@ -262,7 +262,7 @@ for rank, country in enumerate(top5, start=1):
 
     flag_url = f"https://flagcdn.com/w40/{get_iso2(country).lower()}.png"
 
-    # Professional popup
+    # Professional pop-up
     popup_html = f"""
     <div style="font-family: Arial; font-size: 12px; padding: 8px; min-width:200px;">
         <div style="display:flex; align-items:center; gap:8px;">
