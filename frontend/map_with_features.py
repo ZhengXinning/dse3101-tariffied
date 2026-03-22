@@ -17,7 +17,7 @@ import plotly.express as px
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-file_path = BASE_DIR / "dummy_dataset.csv"
+file_path = BASE_DIR / "dummy_dataset_global.csv"
 
 # -------------------------------
 # Load dataset
@@ -53,41 +53,75 @@ h2, h3 {
     margin-bottom: 20px;
 }
 </style>
+            
+<style>
+/* Default (light mode) */
+.legend-box {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    z-index: 1000;
+    background-color: #F9FAFB;
+    color: #111827;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    font-size: 13px;
+    max-width: 260px;
+}
+
+/* Dark mode override */
+.stApp[data-theme="dark"] .legend-box {
+    background-color: #1F2937;
+    color: #F9FAFB;
+    border: 1px solid #374151;
+}
+</style>
 """, unsafe_allow_html=True)
+
 
 
 st.markdown("""
 <h2>Singapore Trade Opportunity Dashboard</h2>
 <div class="subtitle">
-Identify high-potential trade partners based on compatibility and sector strength
+Identify high-potential trade partners based on risk and sector strength
 </div>
 """, unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns(3) 
+# Filters
+col1, col2, col3, col4 = st.columns(4) 
 
-# Country Searchbox
-countries = sorted(df["country"].unique()) # list of countries
-
+# Add origin selector
 with col1:
-    country = st.selectbox(" ", ["Search Country"] + countries)
-
-# Industry Searchbox
-with col2:
-    selected_industry = st.selectbox(
-        "Industry",
-        ["All"] + sorted(df['industry'].unique())
+    origin = st.selectbox(
+        "Origin Country",
+        sorted(df["origin"].unique())
     )
 
 # Region Searchbox
 regions = ["All"] + sorted(df["region"].unique()) # list of regions
 
-with col3:
+with col2:
     region = st.selectbox("Region", regions)
+
+# Industry Searchbox
+with col3:
+    selected_industry = st.selectbox(
+        "Industry",
+        ["All"] + sorted(df['industry'].unique())
+    )
+
+# Country Searchbox
+countries = sorted(df["country"].unique()) # list of countries
+
+with col4:
+    country = st.selectbox("Trading Partners", ["Search Country"] + countries)
 
 # -------------------------------
 # Filtering results
 # -------------------------------
-filtered = df.copy()
+filtered = df[df["origin"] == origin].copy()
 
 if selected_industry != "All": # filter by industry
     filtered = filtered[filtered["industry"] == selected_industry]
@@ -97,6 +131,7 @@ if region != "All": # filter by region
 
 if country != "Search Country": # filter by country
     filtered = filtered[filtered["country"] == country]
+
 else: # if no country selected, show top 5 countries by trade value
     top5_countries = (
         filtered.groupby("country")["trade_value"]
@@ -121,68 +156,62 @@ show_legend = st.checkbox("Show Legend / Info", value=True)
 
 if show_legend:
     st.markdown(
-        """
-        <div style="
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            z-index: 1000;
-            background-color: #F9FAFB;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #E5E7EB;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-            font-size: 13px;
-            max-width: 260px;
-        ">
-            <b>Legend / Info</b><br>
-            <hr style="margin:6px 0;">
-            <div><b>Compatibility Score:</b> 0–1 (higher = better)</div>
-            <div><b>Marker Color:</b> Green = high, Yellow = medium, Red = low</div>
-            <div><b>Arrow Width:</b> Proportional to total trade with Singapore (% of SG GDP)</div>
-            <div>Click on markers for more trade information</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """
+    <div class="legend-box">
+        <b>Legend / Info</b><br>
+        <hr style="margin:6px 0;">
+        <div><b>Risk Index:</b> 0–100 (lower = better)</div>
+        <div><b>Marker Color:</b> Green = low risk, Yellow = medium risk, Red = high risk</div>
+        <div><b>Actual vs Expected Trade:</b> <100% = trade opportunities present, >100% = potentially overtrading</div>
+        <div><b>Arrow Width:</b> Proportional to trade with Singapore (% of SG GDP)</div>
+        <div>Click on markers for more trade information</div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# -------------------------------
+# Origin coordinates
+# -------------------------------
+ORIGIN_COORDS = {
+    "Singapore": (1.3521, 103.8198),
+    "United States of America": (37.09, -95.71),
+    "China": (35.86, 104.19)
+}
+
+origin_coords = ORIGIN_COORDS[origin]
 
 m = folium.Map(
-    location=[1.3521, 103.8198],
-    zoom_start=3,
+    location=[20, 0],   # Africa-centered view
+    zoom_start=2,
     tiles="CartoDB Voyager"
 )
 
 # -------------------------------
-# Singapore coordinates
-# -------------------------------
-SG_COORDS = (1.3521, 103.8198)
-
-
-# -------------------------------
 # Top 5 countries
 # -------------------------------
-df_filtered = df[df["country"] != "Singapore"]
+df_filtered = filtered[filtered["country"] != origin]
 
 top5 = (
-    df_filtered.groupby("country")["compatibility_score"]
+    df_filtered.groupby("country")["risk_index"]
     .mean()
-    .sort_values(ascending=False)
+    .sort_values(ascending=True)   # lower = better
     .head(5)
     .index
     .tolist()
 )
 
 country_scores = (
-    df_filtered.groupby("country")["compatibility_score"]
+    df_filtered.groupby("country")["risk_index"]
     .mean()
     .to_dict()
 )
 
-# Sum weighted imports/exports by trade_pct_gdp
+# imports/exports over gdp
 country_totals = df_filtered.groupby('country').apply(
     lambda x: pd.Series({
-        'imports_sg_pct': (x['imports_sg'] * x['trade_pct_gdp']).sum(),
-        'exports_sg_pct': (x['exports_sg'] * x['trade_pct_gdp']).sum(),
+        'imports_pct': (x['imports_vol'] * x['trade_pct_gdp']/ x['trade_value']).sum(),
+        'exports_pct': (x['exports_vol'] * x['trade_pct_gdp']/ x['trade_value']).sum(),
         'arrow_width_factor': x['trade_pct_gdp'].sum()
     })
 ).to_dict('index')
@@ -212,6 +241,15 @@ def get_arrow_width(trade_factor):
 # Helper: ISO2
 # -------------------------------
 def get_iso2(country_name):
+    # because pycountry names it differently from Nat Geo
+    special_cases = {
+        "United States of America": "US",
+        "United Arab Emirates": "AE"
+    }
+    
+    if country_name in special_cases:
+        return special_cases[country_name]
+    
     try:
         return pycountry.countries.get(name=country_name).alpha_2
     except:
@@ -225,19 +263,25 @@ def get_iso2(country_name):
 # Colours
 # -------------------------------
 def get_color(score):
-    if score <= 0.39:
-        return "#E15759"   # red
-    elif score <= 0.69:
+    if score <= 30:
+        return "#2E8B57"   # green
+    elif score <= 70:
         return "#F2C94C"   # yellow
     else:
-        return "#2E8B57"   # green
+        return "#E15759"   # red
     
 
 # -------------------------------
 # Markers + arrows
 # -------------------------------
 for rank, country in enumerate(top5, start=1):
-    row = df_filtered[df_filtered["country"] == country].iloc[0]
+    country_data = df_filtered[df_filtered["country"] == country]
+
+    # skip if no data after filtering
+    if country_data.empty:
+        continue
+
+    row = country_data.iloc[0]
     endLA = row["latitude"]
     endLO = row["longitude"]
 
@@ -248,13 +292,25 @@ for rank, country in enumerate(top5, start=1):
         .head(3)[["industry", "trade_value", "year"]]
         .values.tolist()
     )
+    
+    # Weighted Actual vs Expected ratio by industry
+    total_weight = country_data["industry_weight"].sum()
 
+    if total_weight > 0:
+        weighted_ae = (
+            (country_data["actual_vs_expected"] * country_data["industry_weight"]).sum()
+            / total_weight
+        )
+    else:
+        weighted_ae = 0
+
+    
     # Colour based on compatibility score 
     color = get_color(country_scores[country])
 
     # Get weighted imports/exports and arrow width
-    imports_sg = country_totals[country]['imports_sg_pct']
-    exports_sg = country_totals[country]['exports_sg_pct']
+    imports_vol = country_totals[country]['imports_pct']
+    exports_vol = country_totals[country]['exports_pct']
     arrow_factor = country_totals[country]['arrow_width_factor']
 
     # Map trade_pct_gdp sum to arrow width
@@ -273,11 +329,12 @@ for rank, country in enumerate(top5, start=1):
         <hr style="margin:6px 0;">
 
         <div>Rank: <b>#{rank}</b></div>
-        <div>Score: <b>{row['compatibility_score']:.2f}</b></div>
+        <div>Risk Index: <b>{row['risk_index']:.2f}</b></div>
+        <div>Actual vs Expected Trade: <b>{weighted_ae:.0f}%</b></div>
         
         <div style="margin-top:6px;">
-        <div><b>Imports</b>: {imports_sg:.2f}% of Singapore GDP</div>
-        <div><b>Exports</b>: {exports_sg:.2f}% of Singapore GDP</div>
+        <div><b>Imports</b>: {imports_vol:.2f}% of {origin} GDP</div>
+        <div><b>Exports</b>: {exports_vol:.2f}% of {origin} GDP</div>
 
         <div style="margin-top:6px;">
             <b>Top Sectors</b>
@@ -326,8 +383,8 @@ for rank, country in enumerate(top5, start=1):
         popup=folium.Popup(popup_html, max_width=300),
         tooltip=tooltip
     ).add_to(m)
- 
-    Arrow([SG_COORDS, (endLA, endLO)], country, color, width)
+
+    Arrow([origin_coords, (endLA, endLO)], country, color, width)
   
 
 # -------------------------------
@@ -341,8 +398,8 @@ with open(geojson_path, encoding="utf-8") as f:
 def style_function(feature):
     if feature['properties']['name'] in top5:
         return {
-            'fillColor': '#A8D5BA',
-            'color': '#2E8B57',
+            'fillColor': "#858AEE",
+            'color': "#7A68C2",
             'weight': 1,
             'fillOpacity': 0.4
         }
@@ -384,37 +441,38 @@ folium.GeoJson(
 ).add_to(m)
 
 # -------------------------------
-# Singapore marker
+# Dynamic Origin Marker
 # -------------------------------
-sg_flag_url = "https://flagcdn.com/w40/sg.png"
+origin_iso = get_iso2(origin).lower()
+origin_flag_url = f"https://flagcdn.com/w40/{origin_iso}.png"
 
-popup_html_sg = f"""
+popup_html_origin = f"""
 <div style="font-size:12px;">
     <div style="display:flex; align-items:center; gap:8px;">
-        <img src="{sg_flag_url}" style="width:24px;">
-        <span style="font-size:14px; font-weight:600;">Singapore (Origin)</span>
+        <img src="{origin_flag_url}" style="width:24px;">
+        <span style="font-size:14px; font-weight:600;">{origin} (Origin)</span>
     </div>
 </div>
 """
 
-tooltip_sg = Tooltip(
-        f"<b>Singapore (Origin)</b>",
-        sticky=True,
-        style="""
-            font-size: 11px;
-            border: none;
-            border-radius: 6px;
-            background-color: rgba(0,0,0,0.75);
-            color: white;
-            padding: 6px;
-        """
-    )
+tooltip_origin = Tooltip(
+    f"<b>{origin} (Origin)</b>",
+    sticky=True,
+    style="""
+        font-size: 11px;
+        border: none;
+        border-radius: 6px;
+        background-color: rgba(0,0,0,0.75);
+        color: white;
+        padding: 6px;
+    """
+)
 
 folium.Marker(
-    SG_COORDS,
-    tooltip=tooltip_sg,
+    origin_coords,
+    tooltip=tooltip_origin,
     icon=folium.Icon(color="red"),
-    popup=folium.Popup(popup_html_sg, max_width=250)
+    popup=folium.Popup(popup_html_origin, max_width=250)
 ).add_to(m)
 
 
@@ -441,7 +499,7 @@ with st.expander("", expanded=True):
         chart_data = (
         filtered.groupby("country")
         .agg(
-            compatibility_score=("compatibility_score", "mean"),
+            risk_index=("risk_index", "mean"),
             trade_value=("trade_value", "sum"),
         )
         .reset_index()
@@ -460,28 +518,21 @@ with st.expander("", expanded=True):
         
         chart_countries = chart_countries.sort_values("trade_value", ascending=False)
         chart_sorted = chart_countries.copy()
-        chart_sorted["compatibility_score"] = (chart_countries["compatibility_score"] * 100).round(0).astype(int)
+        chart_sorted["risk_index"] = (chart_countries["risk_index"]).round(0).astype(int)
         
-        # colour coding for compatibility score 
-        def score_colour(s):
-            if s < 40:
-                return "#e05252"   
-            elif s <= 70:
-                return "#f0c040"   
-            else:
-                return "#4caf7d"   
+  
         
-        chart_sorted = chart_sorted.sort_values('compatibility_score')
-        chart_sorted['colour'] = chart_sorted['compatibility_score'].apply(score_colour)
+        chart_sorted = chart_sorted.sort_values('risk_index')
+        chart_sorted['colour'] = chart_sorted['risk_index'].apply(get_color)
 
         fig1 = px.bar(
-            chart_sorted.sort_values('compatibility_score'),
-            x='compatibility_score',
+            chart_sorted.sort_values('risk_index', ascending=False),
+            x='risk_index',
             y='country',
             orientation='h',
-            text='compatibility_score',
+            text='risk_index',
             labels={
-                'compatibility_score': 'Compatibility Score',
+                'risk_index': 'Risk Index',
                 'country': 'Country'
             },
             color='colour',
@@ -502,7 +553,7 @@ with st.expander("", expanded=True):
     # Chart 2
     with col2:
         fig2 = px.bar(
-            chart_sorted,
+            chart_sorted.sort_values('trade_value', ascending=True),
             x='trade_value',
             y='country',
             orientation='h',
@@ -513,7 +564,7 @@ with st.expander("", expanded=True):
             }
         )
 
-        fig2.update_traces(textposition="outside", textfont_size=10)
+        fig2.update_traces(texttemplate='%{text:.0f}', textposition="outside", textfont_size=10)
         fig2.update_layout(
             template="plotly_white",
             font=dict(size=12),
@@ -528,10 +579,10 @@ with st.expander("", expanded=True):
     # Interpretation
     # -------------------------------
     st.markdown("### Interpretation")
-    most_compat_country = chart_sorted.iloc[-1]["country"]
+    most_compat_country = chart_sorted.iloc[0]["country"]
 
     st.info(
-        f"{most_compat_country} emerges as the strongest partner based on compatibility scores. "
+        f"{most_compat_country} emerges as the strongest partner amongst countries in {region} region based on risk index. "
         f"The selected industry ({selected_industry}) shows varying trade intensity across countries, "
         "highlighting potential specialization opportunities."
     )
