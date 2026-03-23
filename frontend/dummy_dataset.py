@@ -80,7 +80,22 @@ for origin in ["Singapore", "United States of America", "China"]:
             continue
         
         base_trade = np.random.uniform(80_000, 300_000)
-        risk = np.random.uniform(1, 90)
+        #risk = np.random.uniform(1, 90)
+        tariff = np.random.uniform(0, 20)
+        transport_cost = np.random.uniform(1, 10)
+        fatality_rate = np.random.uniform(0, 20)
+        violent_events = np.random.uniform(0, 50)
+        un_vote_alignment = np.random.uniform(0, 1.0)
+        state_visits = np.random.randint(0, 10)
+
+        risk = (
+            0.25 * tariff +
+            0.20 * transport_cost +
+            0.20 * fatality_rate +
+            0.15 * violent_events +
+            0.10 * (1 - un_vote_alignment) * 100 +
+            0.10 * (10 - state_visits)
+        )
         
         for industry in industries:
             
@@ -101,12 +116,22 @@ for origin in ["Singapore", "United States of America", "China"]:
                 "region": regions[country],
                 "industry": industry,
                 "industry_weight": industry_weight,
+                # basic trade info
                 "exports_vol": round(exports,2),
                 "imports_vol": round(imports,2),
                 "trade_value": round(trade_value,2),
                 "trade_pct_gdp": round(trade_pct_gdp,5),
+                # risk indicators
+                "tariff_rate": round(tariff,2),
+                "transport_cost": round(transport_cost,2),
+                "fatality_rate": round(fatality_rate,2),
+                "violent_events": round(violent_events,2),
+                "un_vote_alignment": round(un_vote_alignment,3),
+                "state_visits": state_visits,
+                # calculated metrics
                 "actual_vs_expected": round(AE, 3),
                 "risk_index": round(risk,3),
+                # map coordinates
                 "latitude": lat,
                 "longitude": lon,
                 "year": 2025
@@ -114,6 +139,6 @@ for origin in ["Singapore", "United States of America", "China"]:
 
 df = pd.DataFrame(all_rows)
 
-df.to_csv("dummy_dataset_global.csv", index=False)
+df.to_csv("dummy_dataset_global_indicators.csv", index=False)
 
 print("Dataset created:", df.shape)
