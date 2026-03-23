@@ -437,5 +437,5 @@ if __name__ == "__main__":
     print(comb_model.summary())
 
     # Save models
-    comb_model.save('./combined_model.pickle')
-    comb_model_base.save('./combined_model_base.pickle')
+    comb_model.save('./backend/gravity_models/combined_model.pickle')
+    comb_model_base.save('./backend/gravity_models/combined_model_base.pickle')
