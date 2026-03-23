@@ -21,6 +21,7 @@ def df_merge(df_trade, df_tariff):
     df_population = df_pop_clean()
     df_geogdist = df_geogdist_clean()
     df_geopoldist = df_geopolitical_dist_clean()
+    df_coords = df_centroid_coords_clean()
 
     # Explicitly convert 'refYear' to int and ISO codes to string for consistency
     try:
