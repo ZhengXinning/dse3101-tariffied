@@ -140,8 +140,19 @@ with col3:
 # Country Searchbox
 countries = sorted(df["country"].unique()) # list of countries
 
+#funtion to find list of countries in region
+def filter_region(x):
+    condition=df['region']==x
+    a=df[condition]
+    return sorted(a['country'].unique())
+
+
+Clist= ["Search Country"] + countries
+if region=="APAC":
+        Clist= filter_region("APAC")
 with col4:
     country = st.selectbox("Trading Partners", ["Search Country"] + countries)
+    
 
 
 # -------------------------------
