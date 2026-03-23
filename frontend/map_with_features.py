@@ -160,9 +160,33 @@ with tab1:
     Clist.remove(origin)
     if region != "All":
             Clist= filter_region(region)
+
+    #function to find top5 countries for default
+    def find_5(data):
+        return (
+            data.groupby("country")["risk_index"]
+            .sum()
+            .sort_values(ascending=True)
+            .head(5)
+            .index
+        )
+    
+    #Getting list of top 5 countires for multiselect default
+    default_list=countries
+    df_default=df[df["origin"] == origin].copy()
+    if region !="All":
+        df_region=df_default[df_default["region"]==region].copy()
+        top5_countries =  find_5(df_region)
+        default_list=top5_countries
+    else:
+        top5_countries = find_5(df_default)
+        default_list=top5_countries
+
+
     
     with col4:
-        country= st.multiselect("Trading Partners",Clist)
+        
+        country= st.multiselect("Trading Partners",Clist,default=default_list)
 
     # -------------------------------
     # Fixed-position legend/info over map
@@ -293,7 +317,7 @@ with tab1:
         .index
         .tolist()
     )
-
+    
     country_scores = (
         df_filtered.groupby("country")["risk_index"]
         .mean()
