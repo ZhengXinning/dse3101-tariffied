@@ -155,12 +155,15 @@ with tab1:
         a=df[condition]
         return sorted(a['country'].unique())
 
-
-    Clist= ["Search Country"] + countries
-    if region=="APAC":
-            Clist= filter_region("APAC")
+    #Reducing the number of countries that can be selected by region
+    Clist= countries
+    if region != "All":
+            Clist= filter_region(region)
+    else:
+        Clist=countries
+    
     with col4:
-        country = st.selectbox("Trading Partners", ["Search Country"] + countries)
+        country = st.selectbox("Trading Partners", ["Search Country"] + Clist)
         
 
 
