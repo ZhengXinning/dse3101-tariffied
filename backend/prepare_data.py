@@ -78,6 +78,17 @@ def df_tariff_clean(url):
   df_tariff.dropna(inplace = True)
   return df_tariff
 
+# clean centroid coordinates data
+def df_centroid_coords_clean():
+  df_coords = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Country%20ISO%20Codes%20and%20Centroid%20Coordinates.csv"))
+  df_coords['Latitude (average)'] = df_coords['Latitude (average)'].str.replace('"', '').str.strip().astype(float)
+  df_coords['Longitude (average)'] = df_coords['Longitude (average)'].str.replace('"', '').str.strip().astype(float)
+  df_coords['Alpha-3 code'] = df_coords['Alpha-3 code'].str.replace('"', '').str.strip().astype(str)
+  df_coords['Alpha-2 code'] = df_coords['Alpha-2 code'].str.replace('"', '').str.strip().astype(str)
+  df_coords['Numeric code'] = df_coords['Numeric code'].str.replace('"', '').str.strip().astype(int)
+
+  return df_coords[['Alpha-3 code','Latitude (average)','Longitude (average)']]
+
 # clean geopolitical distance
 def df_geopolitical_dist_clean():
 
