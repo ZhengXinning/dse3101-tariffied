@@ -149,68 +149,7 @@ with tab1:
     # Country Multibox
     countries = sorted(df["country"].unique()) # list of countries
 
-    #funtion to find list of countries in region
-    def filter_region(x):
-        condition=df['region']==x
-        a=df[condition]
-        return sorted(a['country'].unique())
     
-    #Reducing the number of countries that can be selected by region
-    Clist= countries
-    Clist.remove(origin)
-    if region != "All":
-            Clist= filter_region(region)
-
-    #function to find top5 countries for default
-    def find_5(data):
-        return (
-            data.groupby("country")["risk_index"]
-            .sum()
-            .sort_values(ascending=True)
-            .head(5)
-            .index
-        )
-    
-    #Getting list of top 5 countires for multiselect default
-    default_list=countries
-    df_default=df[df["origin"] == origin].copy()
-    if region !="All":
-        df_region=df_default[df_default["region"]==region].copy()
-        top5_countries =  find_5(df_region)
-        default_list=top5_countries
-    else:
-        top5_countries = find_5(df_default)
-        default_list=top5_countries
-
-
-    
-    with col4:
-        
-        country= st.multiselect("Trading Partners",Clist,default=default_list)
-
-    # -------------------------------
-    # Fixed-position legend/info over map
-    # -------------------------------
-    show_legend = st.checkbox("Show Legend / Info", value=True)
-
-    if show_legend:
-        st.markdown(
-        """
-        <div class="legend-box">
-            <b>Legend / Info</b><br>
-            <hr style="margin:6px 0;">
-            <div><b>Risk Index:</b> 0–100 (lower = better)</div>
-            <div><b>Marker Color:</b> Green = low risk, Yellow = medium risk, Red = high risk</div>
-            <div><b>Actual vs Expected Trade:</b> <100% = trade opportunities present, >100% = potentially overtrading</div>
-            <div><b>Arrow Width:</b> Proportional to trade with Origin Country (% of OC GDP)</div>
-            <div>Click on markers for more trade information</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-
     # -------------------------------
     # Policy simulation
     # -------------------------------
@@ -276,6 +215,73 @@ with tab1:
         df_sim.loc[condition, "trade_value"] *= policy["trade_multiplier"]
         df_sim.loc[condition, "risk_index"] *= policy["risk_multiplier"]
         df_sim.loc[condition, "actual_vs_expected"] += policy["ae_adjustment"]
+
+
+    #--------------------------------
+    # Multiselect trading partners
+    #--------------------------------
+
+
+    #funtion to find list of countries in region
+    def filter_region(x):
+        condition=df['region']==x
+        a=df[condition]
+        return sorted(a['country'].unique())
+    
+    #Reducing the number of countries that can be selected by region
+    Clist= countries
+    Clist.remove(origin)
+    if region != "All":
+            Clist= filter_region(region)
+
+    #function to find top5 countries for default
+    def find_5(data):
+        return (
+            data.groupby("country")["risk_index"]
+            .sum()
+            .sort_values(ascending=True)
+            .head(5)
+            .index
+        )
+    
+    #Getting list of top 5 countires for multiselect default
+    default_list=countries
+    df_default=df_sim[df_sim["origin"] == origin].copy()
+    if region !="All":
+        df_region=df_default[df_default["region"]==region].copy()
+        top5_countries =  find_5(df_region)
+        default_list=top5_countries
+    else:
+        top5_countries = find_5(df_default)
+        default_list=top5_countries
+
+    with col4:
+        
+        country= st.multiselect("Trading Partners",Clist,default=default_list)
+
+    # -------------------------------
+    # Fixed-position legend/info over map
+    # -------------------------------
+    show_legend = st.checkbox("Show Legend / Info", value=True)
+
+    if show_legend:
+        st.markdown(
+        """
+        <div class="legend-box">
+            <b>Legend / Info</b><br>
+            <hr style="margin:6px 0;">
+            <div><b>Risk Index:</b> 0–100 (lower = better)</div>
+            <div><b>Marker Color:</b> Green = low risk, Yellow = medium risk, Red = high risk</div>
+            <div><b>Actual vs Expected Trade:</b> <100% = trade opportunities present, >100% = potentially overtrading</div>
+            <div><b>Arrow Width:</b> Proportional to trade with Origin Country (% of OC GDP)</div>
+            <div>Click on markers for more trade information</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+
 
     # -------------------------------
     # Filtering results
