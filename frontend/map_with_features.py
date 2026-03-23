@@ -146,7 +146,7 @@ with tab1:
             ["All"] + sorted(df['industry'].unique())
         )
 
-    # Country Searchbox
+    # Country Multibox
     countries = sorted(df["country"].unique()) # list of countries
 
     #funtion to find list of countries in region
@@ -154,18 +154,15 @@ with tab1:
         condition=df['region']==x
         a=df[condition]
         return sorted(a['country'].unique())
-
+    
     #Reducing the number of countries that can be selected by region
     Clist= countries
+    Clist.remove(origin)
     if region != "All":
             Clist= filter_region(region)
-    else:
-        Clist=countries
     
     with col4:
-        country = st.selectbox("Trading Partners", ["Search Country"] + Clist)
-        
-
+        country= st.multiselect("Trading Partners",Clist)
 
     # -------------------------------
     # Fixed-position legend/info over map
@@ -267,19 +264,21 @@ with tab1:
     if region != "All": # filter by region
         filtered = filtered[filtered["region"] == region]
 
-    if country != "Search Country": # filter by country
-        filtered = filtered[filtered["country"] == country]
 
-    else: # if no country selected, show top 5 countries by trade value
+    if country != []:
+        filtered=filtered[filtered["country"].isin(country)]
+
+    else: # if no country selected, show top 5 countries by risk_index
         top5_countries = (
-            filtered.groupby("country")["trade_value"]
+            filtered.groupby("country")["risk_index"]
             .sum()
-            .sort_values(ascending=False)
+            .sort_values(ascending=True)
             .head(5)
             .index
         )
         filtered = filtered[filtered["country"].isin(top5_countries)]
 
+    
 
     # -------------------------------
     # Top 5 countries
@@ -304,11 +303,13 @@ with tab1:
     # imports/exports over gdp
     country_totals = df_filtered.groupby('country').apply(
         lambda x: pd.Series({
-            'imports_pct': (x['imports_vol'] * x['trade_pct_gdp']/ x['trade_value']).sum(),
-            'exports_pct': (x['exports_vol'] * x['trade_pct_gdp']/ x['trade_value']).sum(),
+            'imports_pct': ((x['imports_vol'] * x['trade_pct_gdp'])/ x['trade_value']).sum(),
+            'exports_pct': ((x['exports_vol'] * x['trade_pct_gdp'])/ x['trade_value']).sum(),
             'arrow_width_factor': x['trade_pct_gdp'].sum()
         })
     ).to_dict('index')
+
+    
 
     # -------------------------------
     # Arrow function
@@ -613,17 +614,17 @@ with tab1:
         )
     
         # checking for filters
-            if country != "Search Country":
+            if country != []:
                 chart_countries = chart_data
-                best_trade_country = country
+                least_risk_country = country
             else:
                 top5 = (
-                    chart_data.nlargest(5, "trade_value")["country"].tolist()
+                    chart_data.nlargest(5, "risk_index")["country"].tolist()
                 )
                 chart_countries = chart_data[chart_data["country"].isin(top5)]
-                best_trade_country = chart_countries.sort_values("trade_value", ascending=False).iloc[0]["country"]
+                least_risk_country = chart_countries.sort_values("risk_index", ascending=True).iloc[0]["country"]
             
-            chart_countries = chart_countries.sort_values("trade_value", ascending=False)
+            chart_countries = chart_countries.sort_values("risk_index", ascending=True)
             chart_sorted = chart_countries.copy()
             chart_sorted["risk_index"] = (chart_countries["risk_index"]).round(0).astype(int)
             
