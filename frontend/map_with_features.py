@@ -105,11 +105,12 @@ div.block-container {
 """, unsafe_allow_html=True)
 
 
-
 st.markdown("""
-<h2>Singapore Trade Opportunity Dashboard</h2>
-<div class="subtitle">
-Identify high-potential trade partners based on risk and sector strength
+<div style="margin-top: 20px;">
+    <h2>Singapore Trade Opportunity Dashboard</h2>
+    <div class="subtitle">
+        Identify high-potential trade partners based on risk and sector strength
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -362,6 +363,8 @@ with col_map:
         tiles="CartoDB Voyager"
     )
 
+    comparison_data = []
+
     # -------------------------------
     # Markers + arrows (TOP 5)
     # -------------------------------
@@ -439,6 +442,17 @@ with col_map:
             weight=width,
             tooltip=country
         ).add_to(m)
+
+        comparison_data.append({
+            "Rank": rank,
+            "Country": country,
+            "Risk Index": row['risk_index'],      
+            "Actual vs Expected": weighted_ae, 
+            "Imports %": imports_vol,    
+            "Exports %": exports_vol 
+        })
+
+    print(comparison_data)
 
     # -------------------------------
     # GeoJSON
@@ -520,6 +534,37 @@ with col_map:
     # -------------------------------
     st_folium(m, use_container_width=True, height=550)
 
+df_compare = pd.DataFrame(comparison_data)
+
+st.subheader("Comparison between top 5 trading partners")
+cols = st.columns(5)
+
+for i, data in enumerate(comparison_data):
+    with cols[i]:
+        flag_url = f"https://flagcdn.com/w40/{get_iso2(data['Country']).lower()}.png"
+        risk_score = data['Risk Index']
+        text_color = get_color(risk_score)
+        st.markdown(f"""
+            <div style="
+                    line-height: 1.2;
+                    padding: 12px;
+                    border: 1px solid #E5E7EB;
+                    border-radius: 12px;
+                    background-color: #FFFFFF;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+                    ">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom: 5px;">
+                    <img src="{flag_url}" style="width:24px; border: 1px solid #eee;">
+                    <span style="font-size:20px; font-weight:700;">{data['Country']}</span>
+                </div>
+                <div style="color: gray; font-size:15px;margin-bottom: 5px;"> Rank: #{data['Rank']}</div>
+                <div style="margin-bottom: 3px;"> Risk Index: <span style="color:{text_color};"><b>{data['Risk Index']:.2f}</span></b></div>
+                <div style="margin-bottom: 3px;"> Actual vs Expected: <b>{data['Actual vs Expected']:.0f}%</b></div>
+                <div style="margin-bottom: 3px;"> Imports: {data['Imports %']:.2f}%</div>
+                <div>Exports: {data['Exports %']:.2f}%</div>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
 # -------------------------------
 # Charts section
