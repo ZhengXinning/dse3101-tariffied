@@ -66,10 +66,23 @@ def df_merge(df_trade, df_tariff):
     except Exception as e:
         print(f"Error merging reporter population: {e}")
         return pd.DataFrame()
+    
+    # Merge reporter coord
+    try:
+        df_merge_trade_reppopcoord= df_merge_trade_reppop.merge(df_coords,
+                          left_on=['reporterISO'],
+                          right_on=['Alpha-3 code'],
+                          how='left').rename(columns={'Latitude (average)': 'reporterlat',
+                                                      'Longitude (average)': 'reporterlong'})
+        df_merge_trade_reppopcoord = df_merge_trade_reppopcoord.drop(columns=['Alpha-3 code'])  
+    except Exception as e:
+        print(f"Error merging reporter coordinates: {e}")
+        return pd.DataFrame()
+    
 
     # Merge partner gdp
     try:
-        df_merge_trade_partgdp= df_merge_trade_reppop.merge(df_gdp,
+        df_merge_trade_partgdp= df_merge_trade_reppopcoord.merge(df_gdp,
                                               left_on=['partnerISO', 'refYear'],
                                               right_on=['Country Code', 'year'],
                                               how='left').rename(columns={'gdp': 'partnerGdp'})
@@ -93,11 +106,25 @@ def df_merge(df_trade, df_tariff):
         print(f"Error merging partner population: {e}")
         return pd.DataFrame()
 
+
+    #Merge partner coordinates
+    try:
+        df_merge_trade_partpopcoord= df_merge_trade_partpop.merge(df_coords,
+                          left_on=['partnerISO'],
+                          right_on=['Alpha-3 code'],
+                          how='left').rename(columns={'Latitude (average)': 'partnerlat',
+                                                      'Longitude (average)': 'partnerlong'})
+        df_merge_trade_partpopcoord = df_merge_trade_partpopcoord.drop(columns=['Alpha-3 code'])            
+   
+    except Exception as e:
+        print(f"Error merging partner coordinates: {e}")
+        return pd.DataFrame()
+
     #Merge geographical distance
     try:
         df_geogdist['iso_o'] = df_geogdist['iso_o'].astype(str)
         df_geogdist['iso_d'] = df_geogdist['iso_d'].astype(str)
-        df_merge_trade_geogdist = df_merge_trade_partpop.merge(df_geogdist,
+        df_merge_trade_geogdist = df_merge_trade_partpopcoord.merge(df_geogdist,
                                                               left_on=['reporterISO','partnerISO'],
                                                               right_on=['iso_o', 'iso_d'],
                                                               how='left')
@@ -166,6 +193,7 @@ def df_merge(df_trade, df_tariff):
     df_merge_trade['partner_gdp/capita'] = df_merge_trade['partnerGdp'] / df_merge_trade['partnerPopulation']
 
     return df_merge_trade
+
 
 def gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
 
