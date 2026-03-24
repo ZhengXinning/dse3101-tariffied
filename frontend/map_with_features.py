@@ -148,6 +148,26 @@ with tab1:
 
     # Country Multibox
     countries = sorted(df["country"].unique()) # list of countries
+    # -------------------------------
+    # Fixed-position legend/info over map
+    # -------------------------------
+    show_legend = st.checkbox("Show Legend / Info", value=True)
+
+    if show_legend:
+        st.markdown(
+        """
+        <div class="legend-box">
+            <b>Legend / Info</b><br>
+            <hr style="margin:6px 0;">
+            <div><b>Risk Index:</b> 0–100 (lower = better)</div>
+            <div><b>Marker Color:</b> Green = low risk, Yellow = medium risk, Red = high risk</div>
+            <div><b>Actual vs Expected Trade:</b> <100% = trade opportunities present, >100% = potentially overtrading</div>
+            <div><b>Arrow Width:</b> Proportional to trade with Origin Country (% of OC GDP)</div>
+            <div>Click on markers for more trade information</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     
     # -------------------------------
@@ -259,27 +279,7 @@ with tab1:
         
         country= st.multiselect("Trading Partners",Clist,default=default_list)
 
-    # -------------------------------
-    # Fixed-position legend/info over map
-    # -------------------------------
-    show_legend = st.checkbox("Show Legend / Info", value=True)
-
-    if show_legend:
-        st.markdown(
-        """
-        <div class="legend-box">
-            <b>Legend / Info</b><br>
-            <hr style="margin:6px 0;">
-            <div><b>Risk Index:</b> 0–100 (lower = better)</div>
-            <div><b>Marker Color:</b> Green = low risk, Yellow = medium risk, Red = high risk</div>
-            <div><b>Actual vs Expected Trade:</b> <100% = trade opportunities present, >100% = potentially overtrading</div>
-            <div><b>Arrow Width:</b> Proportional to trade with Origin Country (% of OC GDP)</div>
-            <div>Click on markers for more trade information</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
+    
 
 
 
