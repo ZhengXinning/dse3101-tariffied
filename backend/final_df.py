@@ -61,6 +61,7 @@ if __name__ == "__main__":
     df_final['partnerTradePctGdp'] = df_final['totalFlow'] / df_final['partnerGdp']
     df_iso = df_isoregion_clean()
     df_final = df_final.merge(df_iso, how='left', left_on='reporterISO', right_on='alpha-3')
+    df_final['riskIndex'] = 100
     df_final = df_final[['refYear', 'cmdCode', 'cmdDesc',
                         'reporterCode', 'reporterISO', 'reporterDesc', 
                         'reporterGdp', 'reporterPopulation', 'reporter_gdp/capita',
@@ -69,6 +70,7 @@ if __name__ == "__main__":
                         'partnerGdp', 'partnerPopulation', 'partner_gdp/capita',
                         'partnerlat', 'partnerlong',
                         'exportFlow', 'importFlow', 'totalFlow', 'predicted_exportFlow', 'tradeRatio', 
+                        'riskIndex',
                         'reporterTradePctGdp', 'partnerTradePctGdp',
                         'IdealPointDistance', 'Tariff']]
     print(df_final.shape)
