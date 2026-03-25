@@ -75,7 +75,8 @@ if __name__ == "__main__":
                         'IdealPointDistance', 'Tariff']]
     print(df_final.shape)
     print(df_final.columns)
-    print(df_final)
+    print(df_final) #59177
+    # print(df_final.dropna().shape) 48737
 
     os.makedirs("./backend/temp_df", exist_ok=True)
     df_final.to_parquet("./backend/temp_df/df_final.parquet")
