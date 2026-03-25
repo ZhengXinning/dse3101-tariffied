@@ -43,55 +43,110 @@ def clean_export(exporturl,
 
 # clean gdp data
 def df_gdp_clean():
-  df_gdp = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/GDP%20data.xls"),sheet_name="Data", skiprows=3, usecols= [0,1] +list(range(59,69)), index_col=0)
-  df_gdp = df_gdp.reset_index()
-  df_gdp = df_gdp.melt(id_vars=['Country Name', 'Country Code'], var_name='year', value_name='gdp')
-  df_gdp.dropna(inplace = True)
-  df_gdp['year'] = df_gdp['year'].astype(int)
-  return df_gdp
+    df_gdp = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/GDP%20data.xls"),sheet_name="Data", skiprows=3, usecols= [0,1] +list(range(59,69)), index_col=0)
+    df_gdp = df_gdp.reset_index()
+    df_gdp = df_gdp.melt(id_vars=['Country Name', 'Country Code'], var_name='year', value_name='gdp')
+    df_gdp.dropna(inplace = True)
+    df_gdp['year'] = df_gdp['year'].astype(int)
+    return df_gdp
 
 # clean population data
 def df_pop_clean():
-  df_population = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Population.xls"),skiprows=3, usecols= [0,1] +list(range(59,69)))
-  df_population = df_population.melt(id_vars=['Country Name', 'Country Code'], var_name='year', value_name='population')
-  df_population.dropna(inplace = True)
-  df_population['year'] = df_population['year'].astype(int)
-  return df_population
+    df_population = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Population.xls"),skiprows=3, usecols= [0,1] +list(range(59,69)))
+    df_population = df_population.melt(id_vars=['Country Name', 'Country Code'], var_name='year', value_name='population')
+    df_population.dropna(inplace = True)
+    df_population['year'] = df_population['year'].astype(int)
+    return df_population
 
 # clean geographical distance data
 def df_geogdist_clean():
-  df_geogdist = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Geographical%20Distance%20(dist_cepii).xls"),
-                            engine='calamine',usecols= [0,1]+list(range(10,14)), na_values='.', index_col=[0,1])
-  cols = df_geogdist.select_dtypes(include='object').columns
-  for a in cols:
-    if a not in ['iso_d','iso_o']:
-      print(a)
-      df_geogdist[a] = df_geogdist[a].astype('float64')
-  df_geogdist.reset_index(inplace = True)
-  df_geogdist.dropna(inplace = True)
-  return df_geogdist
+    df_geogdist = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Geographical%20Distance%20(dist_cepii).xls"),
+                              engine='calamine',usecols= [0,1]+list(range(10,14)), na_values='.', index_col=[0,1])
+    cols = df_geogdist.select_dtypes(include='object').columns
+    for a in cols:
+      if a not in ['iso_d','iso_o']:
+        print(a)
+        df_geogdist[a] = df_geogdist[a].astype('float64')
+    df_geogdist.reset_index(inplace = True)
+    df_geogdist.dropna(inplace = True)
+    return df_geogdist
 
 # clean tariff data
 def df_tariff_clean(url):
-  df_tariff = pd.read_csv(fetch_data(url), encoding = 'latin1', index_col = 0)
-  df_tariff = df_tariff.groupby(['Reporting Economy Code', 'Reporting Economy ISO3A Code', 'Reporting Economy', 'Partner Economy Code', 'Partner Economy ISO3A Code', 'Partner Economy', 'Year', 'HS2'])['Value'].mean().reset_index()
-  df_tariff.dropna(inplace = True)
-  return df_tariff
+    df_tariff = pd.read_csv(fetch_data(url), encoding='latin1', index_col=0)
+
+    df_tariff = (
+        df_tariff
+        .groupby([
+            'Reporting Economy Code',
+            'Reporting Economy ISO3A Code',
+            'Reporting Economy',
+            'Partner Economy Code',
+            'Partner Economy ISO3A Code',
+            'Partner Economy',
+            'Year',
+            'HS2'
+        ])['Value']
+        .mean()
+        .reset_index()
+    )
+
+    df_tariff.dropna(inplace=True)
+
+    # Create a DataFrame with country names, ISO codes, and ISO codes
+    eu_map = pd.DataFrame({
+        "country": [
+            "Austria","Belgium","Bulgaria","Croatia","Cyprus","Czechia","Denmark",
+            "Estonia","Finland","France","Germany","Greece","Hungary","Ireland",
+            "Italy","Latvia","Lithuania","Luxembourg","Malta","Netherlands",
+            "Poland","Portugal","Romania","Slovakia","Slovenia","Spain","Sweden"
+        ],
+        "iso": [
+            "AUT","BEL","BGR","HRV","CYP","CZE","DNK","EST","FIN","FRA","DEU","GRC",
+            "HUN","IRL","ITA","LVA","LTU","LUX","MLT","NLD","POL","PRT","ROU","SVK",
+            "SVN","ESP","SWE"
+        ],
+        "iso_code": [
+            40, 56, 100, 191, 196, 203, 208, 
+            233, 246, 250, 276, 300, 348, 372, 
+            380, 428, 440, 442, 470, 528, 
+            616, 620, 642, 703, 705, 724, 752
+        ]
+    })
+
+    # Split EU vs non-EU (assuming EU appears in Partner Economy)
+    df_eu = df_tariff[df_tariff['Reporting Economy'] == 'European Union']
+    df_non_eu = df_tariff[df_tariff['Reporting Economy'] != 'European Union']
+
+    # Expand EU rows
+    df_eu_expanded = df_eu.merge(eu_map, how='cross')
+
+    # Replace with actual countries
+    df_eu_expanded['Reporting Economy'] = df_eu_expanded['country']
+    df_eu_expanded['Reporting Economy ISO3A Code'] = df_eu_expanded['iso']
+    df_eu_expanded['Reporting Economy Code'] = df_eu_expanded['iso_code']
+
+    # Drop helper columns
+    df_eu_expanded = df_eu_expanded.drop(columns=['country', 'iso', 'iso_code'])
+
+    # Combine back
+    df_tariff = pd.concat([df_non_eu, df_eu_expanded], ignore_index=True)
+
+    return df_tariff
 
 # clean centroid coordinates data
 def df_centroid_coords_clean():
-  df_coords = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Country%20ISO%20Codes%20and%20Centroid%20Coordinates.csv"))
-  df_coords['Latitude (average)'] = df_coords['Latitude (average)'].str.replace('"', '').str.strip().astype(float)
-  df_coords['Longitude (average)'] = df_coords['Longitude (average)'].str.replace('"', '').str.strip().astype(float)
-  df_coords['Alpha-3 code'] = df_coords['Alpha-3 code'].str.replace('"', '').str.strip().astype(str)
-  df_coords['Alpha-2 code'] = df_coords['Alpha-2 code'].str.replace('"', '').str.strip().astype(str)
-  df_coords['Numeric code'] = df_coords['Numeric code'].str.replace('"', '').str.strip().astype(int)
+    df_coords = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Country%20ISO%20Codes%20and%20Centroid%20Coordinates.csv"))
+    df_coords['Latitude (average)'] = df_coords['Latitude (average)'].str.replace('"', '').str.strip().astype(float)
+    df_coords['Longitude (average)'] = df_coords['Longitude (average)'].str.replace('"', '').str.strip().astype(float)
+    df_coords['Alpha-3 code'] = df_coords['Alpha-3 code'].str.replace('"', '').str.strip().astype(str)
+    df_coords['Alpha-2 code'] = df_coords['Alpha-2 code'].str.replace('"', '').str.strip().astype(str)
+    df_coords['Numeric code'] = df_coords['Numeric code'].str.replace('"', '').str.strip().astype(int)
 
-  return df_coords[['Alpha-3 code','Latitude (average)','Longitude (average)']]
+    return df_coords[['Alpha-3 code','Latitude (average)','Longitude (average)']]
 
 # clean geopolitical distance
 def df_geopolitical_dist_clean():
-
     df_isocow_ccode = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/cow2iso.csv"), encoding='latin1')
     df_isocow_ccode = df_isocow_ccode[(df_isocow_ccode['valid_until'].isna())| (df_isocow_ccode['valid_until'] >= 2015)]
 
@@ -145,4 +200,3 @@ def df_geopolitical_dist_clean():
     cleaned_geopo_dist_agreement_scores_df.dropna(inplace=True)
 
     return cleaned_geopo_dist_agreement_scores_df
-

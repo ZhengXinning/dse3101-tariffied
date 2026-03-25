@@ -261,21 +261,6 @@ def gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
 
 #Baseline gravity model WITHOUT geopolitical distance
 def base_gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
-    """
-    Runs a gravity model regression on the input DataFrame.
-
-    Args:
-        df_input (pd.DataFrame): The cleaned DataFrame containing trade data
-                                 and relevant economic, geographic, and policy variables.
-        predict (bool): If True, returns the fitted model object for prediction. Otherwise, returns the summary.
-        test_size (float): The proportion of the dataset to include in the test split.
-        random_state (int): Controls the shuffling applied to the data before applying the split.
-
-    Returns:
-        statsmodels.regression.linear_model.RegressionResultsWrapper or statsmodels.genmod.generalized_linear_model.GLMResults or str:
-            The fitted OLS regression model results object if predict is True, or its summary if predict is False.
-            If predict is True, it also returns the test DataFrame.
-    """
 
     # Create a working copy of the dataframe
     model_df = df_input.copy()
