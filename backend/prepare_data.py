@@ -93,7 +93,6 @@ def df_geogdist_clean():
     df_geogdist.dropna(inplace = True)
     return df_geogdist
 
-# clean tariff data
 def df_tariff_clean(url):
     df_tariff = pd.read_csv(fetch_data(url), encoding='latin1', index_col=0)
 
@@ -115,31 +114,34 @@ def df_tariff_clean(url):
 
     df_tariff.dropna(inplace=True)
 
-    # Create a DataFrame with country names, ISO codes, and ISO codes
+    # Create a DataFrame with country names, ISO codes, and ISO codes. 
+    # Note that United Kingdom is included here as well, but will be filtered out for years after 2019.
     eu_map = pd.DataFrame({
         "country": [
             "Austria","Belgium","Bulgaria","Croatia","Cyprus","Czechia","Denmark",
             "Estonia","Finland","France","Germany","Greece","Hungary","Ireland",
             "Italy","Latvia","Lithuania","Luxembourg","Malta","Netherlands",
-            "Poland","Portugal","Romania","Slovakia","Slovenia","Spain","Sweden"
+            "Poland","Portugal","Romania","Slovakia","Slovenia","Spain","Sweden",
+            "United Kingdom"
         ],
         "iso": [
             "AUT","BEL","BGR","HRV","CYP","CZE","DNK","EST","FIN","FRA","DEU","GRC",
             "HUN","IRL","ITA","LVA","LTU","LUX","MLT","NLD","POL","PRT","ROU","SVK",
-            "SVN","ESP","SWE"
+            "SVN","ESP","SWE","GBR"
         ],
         "iso_code": [
             40, 56, 100, 191, 196, 203, 208, 
             233, 246, 250, 276, 300, 348, 372, 
             380, 428, 440, 442, 470, 528, 
-            616, 620, 642, 703, 705, 724, 752
+            616, 620, 642, 703, 705, 724, 752,
+            826
         ]
     })
 
     # Split EU vs non-EU (assuming EU appears in Partner Economy)
     df_eu = df_tariff[df_tariff['Reporting Economy'] == 'European Union']
     df_non_eu = df_tariff[df_tariff['Reporting Economy'] != 'European Union']
-
+    
     # Expand EU rows
     df_eu_expanded = df_eu.merge(eu_map, how='cross')
 
@@ -148,13 +150,17 @@ def df_tariff_clean(url):
     df_eu_expanded['Reporting Economy ISO3A Code'] = df_eu_expanded['iso']
     df_eu_expanded['Reporting Economy Code'] = df_eu_expanded['iso_code']
 
+    # Filter out UK for years after 2019 (Brexit)
+    df_eu_expanded = df_eu_expanded[~((df_eu_expanded['Reporting Economy'] == 'United Kingdom') & (df_eu_expanded['Year'] > 2019))]
+
     # Drop helper columns
     df_eu_expanded = df_eu_expanded.drop(columns=['country', 'iso', 'iso_code'])
 
     # Combine back
     df_tariff = pd.concat([df_non_eu, df_eu_expanded], ignore_index=True)
-
+    
     return df_tariff
+
 
 # clean centroid coordinates data
 def df_centroid_coords_clean():
