@@ -41,6 +41,28 @@ def clean_export(exporturl,
 
     return df_export
 
+# clean import data
+def clean_import(importurl,
+          relevant_columns=['refYear', 'reporterCode', 'reporterISO', 'reporterDesc', 'partnerCode', 'partnerISO', 'partnerDesc', 'cmdCode', 'cmdDesc'],
+          import_val='cifvalue'):
+
+    # Fetch export and import data from the provided URL
+    import_data = fetch_data(importurl)
+
+    # Read export and import data into a pandas DataFrame, selecting relevant columns and the export value column
+    df_import = pd.read_csv(import_data, encoding = 'latin1', index_col = 0)[relevant_columns + [import_val]]
+
+    # Drop rows that contain any NaN values, which typically result from unmatched entries in the outer merge
+    df_import.dropna(inplace = True)
+
+    # Reset the DataFrame index after dropping rows, ensuring a clean sequential index
+    df_import.reset_index(drop = True, inplace = True)
+
+    # Rename column
+    df_import = df_import.rename(columns={'cifvalue':'importFlow'})
+
+    return df_import
+
 # clean gdp data
 def df_gdp_clean():
     df_gdp = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/GDP%20data.xls"),sheet_name="Data", skiprows=3, usecols= [0,1] +list(range(59,69)), index_col=0)
@@ -145,18 +167,30 @@ def df_centroid_coords_clean():
 
     return df_coords[['Alpha-3 code','Latitude (average)','Longitude (average)']]
 
-# clean geopolitical distance
-def df_geopolitical_dist_clean():
+# clean iso w region code
+def df_isoregion_clean():
+    df_isoregion = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/iso_country_codes_with_regions.csv"), encoding='latin1')
+    df_isoregion = df_isoregion[['alpha-3', 'region']]
+    return df_isoregion
+
+# clean iso to cow code
+def df_isocow_ccode_clean():
     df_isocow_ccode = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/cow2iso.csv"), encoding='latin1')
     df_isocow_ccode = df_isocow_ccode[(df_isocow_ccode['valid_until'].isna())| (df_isocow_ccode['valid_until'] >= 2015)]
 
     df_isocow_ccode['cow_id'] = df_isocow_ccode['cow_id'].astype('Int64')
     df_isocow_ccode['iso_id'] = df_isocow_ccode['iso_id'].astype('Int64')
 
+    return df_isocow_ccode
+
+# clean geopolitical distance
+def df_geopolitical_dist_clean():
+    
+    df_isocow_ccode = df_isocow_ccode_clean()
+
     #Setting the index to cow_id and cow3 for easier merging later on
     df_isocow_ccode.set_index(["cow_id", "cow3"], inplace=True)
     #print("COW to ISO code mapping DataFrame of shape "+str(df_isocow_ccode.shape)+" has been loaded successfully!")
-
 
     #using harvard dataverse
     #geopo_dist_agreement_scores_df= fetch_geopolitical_dist_dataverse()

@@ -1,20 +1,9 @@
 import pandas as pd
-import requests
-from io import StringIO, BytesIO
-from easyDataverse import Dataverse
-import os
-import time
-import io
-import warnings
 from sklearn.model_selection import train_test_split
 import numpy as np
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
-
 from prepare_data import *
 import os
-import pickle
-from datetime import datetime
 
 def df_merge(df_trade, df_tariff):
     df_gdp = df_gdp_clean()
@@ -229,11 +218,11 @@ def gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
 
     # Split the data into training and testing sets
 
-
     # Define the regression formula based on the gravity model
     formula = (
         "ln_exportflow ~ ln_reporter_gdp_per_capita + ln_partner_gdp_per_capita + ln_distcap + "
         "ln_tariff + C(cmdCode) + C(refYear) + ln_ideal_point_distance + ln_repPop + ln_partPop"
+        "+ C(reporterISO) + C(partnerISO)"
     )
 
     # Build and fit the OLS model on the training data
@@ -289,11 +278,11 @@ def base_gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
 
     # Split the data into training and testing sets
 
-
     # Define the regression formula based on the gravity model
     formula = (
         "ln_exportflow ~ ln_reporter_gdp_per_capita + ln_partner_gdp_per_capita + ln_distcap + "
         "ln_tariff + C(cmdCode) + C(refYear) + ln_repPop + ln_partPop"
+        "+ C(reporterISO) + C(partnerISO)"
     )
 
     # Build and fit the OLS model on the training data
@@ -323,122 +312,53 @@ def base_gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
 countries_config = {
     'SG': {
         'export': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/SGP_ExporttoWorld_2015-2024.csv",
+        'import': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/SGP_ImportfromWorld_2015-2024.csv",
         'tariff': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/WorldReportedTariffAgainstSGPClean.csv"
     },
     'CHN': {
         'export': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/CHN_ExporttoWorld_2015-2024.csv",
+        'import': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/CHN_ImportfromWorld_2015-2024.csv",
         'tariff': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/WorldReportedTariffAgainstCHNClean.csv"
     },
     'DEU': {
         'export': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/DEU_ExporttoWorld_2015-2024.csv",
+        'import': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/DEU_ImportfromWorld_2015-2024.csv",
         'tariff': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/WorldReportedTariffAgainstDEUClean.csv"
     },
     'USA': {
         'export': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/USA_ExporttoWorld_2015-2024.csv",
+        'import': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/USA_ImportfromWorld_2015-2024.csv",
         'tariff': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/WorldReportedTariffAgainstUSAClean.csv"
     },
     'JPN': {
         'export': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/JPN_ExporttoWorld_2015-2024.csv",
+        'import': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/JPN_ImportfromWorld_2015-2024.csv",
         'tariff': "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/WorldReportedTariffAgainstJPNClean.csv"
     }
 }
 
-# Run baseline model for individual countries at once
-def run_baseline_gravity_model(countries_config, save_dir="./backend/gravity_models", predict=False):
-    
-    # Create save directory if it doesn't exist
-    os.makedirs(save_dir, exist_ok=True)
-    
-    results = {}
-    
-    for country_code, urls in countries_config.items():
-        
-        try:
-            # Load and merge data
-            df_export = clean_export(exporturl = urls['export'])
-            df_tariff = df_tariff_clean(url = urls['tariff'])
-            cleaned_df = df_merge(df_export, df_tariff)
-            
-            # Run gravity model
-            if predict:
-                model, test_df = base_gravity_model(cleaned_df, predict=True, test_size=0.3, random_state=42)
-            else:
-                model = base_gravity_model(cleaned_df, predict=False)
-                test_df = None
-            
-            # Save results
-            model_path = os.path.join(save_dir, f"{country_code}_base_model.pickle")
-            model.save(model_path)
-            
-            results[country_code] = {
-                'model': model,
-                'test_df': test_df,
-                'cleaned_df': cleaned_df,
-                'model_path': model_path
-            }
-            
-            print(f"{country_code} completed. Model saved to {model_path}")
-            
-        except Exception as e:
-            print(f"Error processing {country_code}: {e}")
-            results[country_code] = None
-    
-    return results
-
-# Run gravity model for individual countries at once
-def run_gravity_model(countries_config, save_dir="./backend/gravity_models", predict=False):
-    
-    # Create save directory if it doesn't exist
-    os.makedirs(save_dir, exist_ok=True)
-    
-    results = {}
-    
-    for country_code, urls in countries_config.items():
-        
-        try:
-            # Load and merge data
-            df_export = clean_export(exporturl = urls['export'])
-            df_tariff = df_tariff_clean(url = urls['tariff'])
-            cleaned_df = df_merge(df_export, df_tariff)
-            
-            # Run gravity model
-            if predict:
-                model, test_df = gravity_model(cleaned_df, predict=True, test_size=0.3, random_state=42)
-            else:
-                model = gravity_model(cleaned_df, predict=False)
-                test_df = None
-            
-            # Save results
-            model_path = os.path.join(save_dir, f"{country_code}_model.pickle")
-            model.save(model_path)
-
-            results[country_code] = {
-                'model': model,
-                'test_df': test_df,
-                'cleaned_df': cleaned_df,
-                'model_path': model_path
-            }
-            
-            print(f"{country_code} completed. Model saved to {model_path}")
-            
-        except Exception as e:
-            print(f"Error processing {country_code}: {e}")
-            results[country_code] = None
-    
-    return results
-
 if __name__ == "__main__":
-    all_results_baseline = run_baseline_gravity_model(
-        countries_config, save_dir="./backend/gravity_models", predict=False
-    )
+    # bind cleaned df of the countries together
+    all_results = {}
 
-    all_results = run_gravity_model(
-        countries_config, save_dir="./backend/gravity_models", predict=False
-    )
+    for country_code, urls in countries_config.items():
+        try:
+            # Load and merge data
+            df_export = clean_export(exporturl=urls['export'])
+            df_tariff = df_tariff_clean(url=urls['tariff'])
+            cleaned_df = df_merge(df_export, df_tariff)
 
-    # Combine all cleaned dfs
+            all_results[country_code] = {
+                'cleaned_df': cleaned_df
+            }
+            print(f"{country_code} data loaded successfully")
+
+        except Exception as e:
+            print(f"Error processing {country_code}: {e}")
+            all_results[country_code] = None
+
     combined_dfs = [v['cleaned_df'] for v in all_results.values() if v is not None]
-    df_comb = pd.concat(combined_dfs).reset_index(drop=True)
+    df_comb = pd.concat(combined_dfs, ignore_index=True)
 
     os.makedirs("./backend/temp_df", exist_ok=True)
     df_comb.to_parquet("./backend/temp_df/df_comb.parquet")
@@ -446,10 +366,17 @@ if __name__ == "__main__":
     # Run combined model
     comb_model = gravity_model(df_comb, predict=False)
     comb_model_base = base_gravity_model(df_comb, predict=False)
-
+    
+    print("==========================================")
+    print("Base Model:")
+    print("==========================================")
     print(comb_model_base.summary())
+    print("==========================================")
+    print("Combined Model with Geopolitical Distance:")
+    print("==========================================")
     print(comb_model.summary())
 
     # Save models
+    os.makedirs("./backend/gravity_models", exist_ok=True)
     comb_model.save('./backend/gravity_models/combined_model.pickle')
     comb_model_base.save('./backend/gravity_models/combined_model_base.pickle')
