@@ -15,15 +15,35 @@ import pycountry
 import plotly.express as px
 from pathlib import Path
 
+#BASE_DIR = Path(__file__).resolve().parent
+#file_path = BASE_DIR / "dummy_dataset.csv"
+
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
 
 # -------------------------------
 # Load dataset
 # -------------------------------
+# df = pd.read_csv(file_path, keep_default_na=False)
 df = pd.read_parquet(file_path)
-#print(df.columns)
-#print(df.head())
+print(df.columns)
+print(df.head())
+df = df.rename(columns={
+    "reporterDesc": "origin",
+    "partnerDesc": "country",
+    "partnerRegion": "region",
+    "cmdDesc": "industry",
+    "exportFlow": "exports_vol",
+    "importFlow": "imports_vol",
+    "totalFlow": "trade_value",
+    "tradeRatio": "actual_vs_expected",
+    "riskIndex": "risk_index",
+    "Tariff": "tariff_rate",
+    "reporterTradePctGdp": "trade_pct_gdp",
+    "partnerlat": "latitude",
+    "partnerlong": "longitude",
+    "refYear": "year"
+})
 
 # -------------------------------
 # Initialise session state
