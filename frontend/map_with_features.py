@@ -13,6 +13,7 @@ from folium.features import GeoJsonTooltip
 import json
 import pycountry
 import plotly.express as px
+import feedparser
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -20,6 +21,93 @@ file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
 
 # BASE_DIR = Path(__file__).resolve().parent
 # file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
+
+TRADE_KEYWORDS = [
+    "trade", "tariff", "geopolit", "sanction", "export", "import",
+    "wto", "supply chain", "bilateral", "fta", "free trade", "customs",
+    "embargo", "diplomatic", "foreign policy", "alliance", "treaty", "agreement",
+    "protectionism", "dumping", "quota", "trade war", "trade deal", "shortage"
+]
+
+POSITIVE_KEYWORDS = [
+    "boost", "growth", "deal", "agreement", "cooperation", "rise", "gain",
+    "opportunity", "strengthen", "recovery", "progress", "approval", "approve", 
+    "partnership", "expand", "benefit", "positive", "optimism", "rebound", "record"
+]
+
+NEGATIVE_KEYWORDS = [
+    "war", "sanction", "ban", "decline", "loss", "risk", "tension", "conflict",
+    "crisis", "recession", "drop", "fall", "restriction", "penalty", "threat",
+    "collapse", "slowdown", "downturn", "tariff hike", "retaliation", "cut",
+    "shutdown", "freeze", "dispute", "protest", "deficit", "inflation", "warns"
+]
+
+def format_date(published_str):
+    if not published_str:
+        return ""
+    from datetime import datetime, timezone
+    try:
+        dt = datetime.strptime(published_str, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        hours_ago = (now - dt).total_seconds() / 3600
+        if hours_ago < 1:
+            mins = int((now - dt).total_seconds() / 60)
+            return f"{mins}m ago"
+        elif hours_ago < 24:
+            return f"{int(hours_ago)}h ago"
+        else:
+            return dt.strftime("%d %b %Y")
+    except ValueError:
+        return published_str
+
+def get_sentiment(text):
+    text = text.lower()
+    pos = sum(1 for kw in POSITIVE_KEYWORDS if kw in text)
+    neg = sum(1 for kw in NEGATIVE_KEYWORDS if kw in text)
+    if pos > neg:
+        return "positive"
+    elif neg > pos:
+        return "negative"
+    return "neutral"
+
+@st.cache_data(ttl=300)  # refresh every 5 minutes
+def get_news():
+    feeds = [
+        ("Reuters Business", "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best"),
+        ("BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml"),
+        ("Financial Times", "https://www.ft.com/rss/home"),
+        ("Reuters World", "https://feeds.reuters.com/reuters/worldNews"),
+        ("Al Jazeera Economy", "https://www.aljazeera.com/xml/rss/all.xml"),
+        ("Guardian World", "https://www.theguardian.com/world/rss"), 
+        ("Reuters Energy", "https://news.google.com/rss/search?q=site:reuters.com+(oil+OR+gas+OR+energy+OR+OPEC)+when:3d&hl=en-US&gl=US&ceid=US:en")
+    ]
+
+    articles = []
+
+    for source, url in feeds:
+        feed = feedparser.parse(url)
+        for entry in feed.entries[:15]:  # check more entries per source for keyword filtering
+            title = entry.get("title", "")
+            summary = entry.get("summary", "")
+            text = (title + " " + summary).lower()
+            if any(kw in text for kw in TRADE_KEYWORDS):
+                # Parse published datetime
+                published = ""
+                if hasattr(entry, "published_parsed") and entry.published_parsed:
+                    t = entry.published_parsed
+                    published = f"{t.tm_year}-{t.tm_mon:02d}-{t.tm_mday:02d} {t.tm_hour:02d}:{t.tm_min:02d}"
+                elif entry.get("published"):
+                    published = entry.get("published", "")[:16]
+
+                articles.append({
+                    "title": title,
+                    "link": entry.link,
+                    "source": source,
+                    "published": published,
+                    "sentiment": get_sentiment(title + " " + summary)
+                })
+
+    return articles
 
 # -------------------------------
 # Load dataset
@@ -138,6 +226,23 @@ div.block-container {
     padding-top: 1rem;
 }
 </style>           
+
+<style>
+@keyframes flash-red {
+    0%, 100% { background-color: #EF4444; opacity: 1; }
+    50%       { background-color: #eb7a7a; opacity: 0.9; }
+}
+.alert-flash {
+    animation: flash-red 1.2s ease-in-out infinite;
+    color: #F9FAFB;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    display: inline-block;
+}
+</style>  
 """, unsafe_allow_html=True)
 
 
@@ -769,3 +874,36 @@ with tab1:
 with tab2:
     st.markdown("### Customise Risk Index Indicators")
     st.write("Create your own risk index by selecting which indicators to include in the calculation. You may observe how the risk index and partner rankings change in the Map & Charts tab.")
+
+
+# -------------------------------
+# Live News Section (SIDEBAR)
+# -------------------------------
+with st.sidebar:
+    st.markdown("# WORLD NEWS")
+
+    news = get_news()
+
+    if not news:
+        st.info("No trade/geopolitics news found at the moment. Try again shortly.")
+    else:
+        for article in news:
+            is_negative = article["sentiment"] == "negative"
+            alert_badge = '<span class="alert-flash">ALERT</span>' if is_negative else ""
+            date_str = format_date(article["published"])
+            st.markdown(f"""
+<div style="margin-bottom:10px;">
+  <div style="font-size:11px; font-weight:600; opacity:0.5; color:var(--text-color); margin-bottom:2px;">
+    {article['source']} 
+  </div>
+  {alert_badge}
+  <a href="{article['link']}" target="_blank"
+     style="font-size:13px; font-weight:600; text-decoration:none; color:var(--text-color);">
+    {article['title']}
+  </a>
+  <div style="font-size:11px; margin-top:3px; opacity:0.45; color:var(--text-color);">
+    {date_str}
+  </div>
+</div>
+<hr style="margin:6px 0; opacity:0.2;">
+""", unsafe_allow_html=True)
