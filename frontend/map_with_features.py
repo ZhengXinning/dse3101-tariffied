@@ -15,35 +15,50 @@ import pycountry
 import plotly.express as px
 from pathlib import Path
 
-#BASE_DIR = Path(__file__).resolve().parent
-#file_path = BASE_DIR / "dummy_dataset.csv"
-
 BASE_DIR = Path(__file__).resolve().parent
-file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
+file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
+
+# BASE_DIR = Path(__file__).resolve().parent
+# file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
 
 # -------------------------------
 # Load dataset
 # -------------------------------
-# df = pd.read_csv(file_path, keep_default_na=False)
-df = pd.read_parquet(file_path)
-print(df.columns)
-print(df.head())
-df = df.rename(columns={
-    "reporterDesc": "origin",
-    "partnerDesc": "country",
-    "partnerRegion": "region",
-    "cmdDesc": "industry",
-    "exportFlow": "exports_vol",
-    "importFlow": "imports_vol",
-    "totalFlow": "trade_value",
-    "tradeRatio": "actual_vs_expected",
-    "riskIndex": "risk_index",
-    "Tariff": "tariff_rate",
-    "reporterTradePctGdp": "trade_pct_gdp",
-    "partnerlat": "latitude",
-    "partnerlong": "longitude",
-    "refYear": "year"
-})
+df = pd.read_csv(file_path, keep_default_na=False)
+
+#df = pd.read_parquet(file_path)
+#df = df.rename(columns={
+    # "refYear": "year",
+    # "cmdCode": "industry_code",
+    # "cmdDesc": "industry",
+    # "reporterCode": "origin_code",
+    # "reporterISO": "origin_iso",
+    # "reporterDesc": "origin",
+    # "reporterRegion": "origin_region",
+    # "reporterGdp": "origin_gdp",
+    # "reporterPopulation": "origin_population",
+    # "reporter_gdp/capita": "origin_gdp_per_capita",
+    # "reporterlat": "origin_latitude",
+    # "reporterlong": "origin_longitude",
+    # "partnerCode": "partner_code",
+    # "partnerISO": "partner_iso",
+    # "partnerDesc": "country",
+    # "partnerRegion": "region",
+    # "partnerGdp": "partner_gdp",
+    # "partnerPopulation": "partner_population",
+    # "partner_gdp/capita": "partner_gdp_per_capita",
+    # "partnerlat": "latitude",
+    # "partnerlong": "longitude",
+    # "exportFlow": "exports_vol",
+    # "importFlow": "imports_vol",
+    # "totalFlow": "trade_value",
+    # "predicted_exportFlow": "predicted_exports",
+    # "tradeRatio": "actual_vs_expected",
+    # "riskIndex": "risk_index",
+    # "reporterTradePctGdp": "origin_trade_pct_gdp",
+    # "partnerTradePctGdp": "trade_pct_gdp",
+    # "Tariff": "tariff_rate"
+#})
 
 # -------------------------------
 # Initialise session state
