@@ -60,13 +60,14 @@ if __name__ == "__main__":
     df_final['reporterTradePctGdp'] = df_final['totalFlow'] / df_final['reporterGdp']
     df_final['partnerTradePctGdp'] = df_final['totalFlow'] / df_final['partnerGdp']
     df_iso = df_isoregion_clean()
-    df_final = df_final.merge(df_iso, how='left', left_on='reporterISO', right_on='alpha-3')
+    df_final = df_final.merge(df_iso, how='left', left_on='reporterISO', right_on='alpha-3').rename(columns={'region':'reporterRegion'})
+    df_final = df_final.merge(df_iso, how='left', left_on='partnerISO', right_on='alpha-3').rename(columns={'region':'partnerRegion'})
     df_final['riskIndex'] = 100
     df_final = df_final[['refYear', 'cmdCode', 'cmdDesc',
-                        'reporterCode', 'reporterISO', 'reporterDesc', 
+                        'reporterCode', 'reporterISO', 'reporterDesc', 'reporterRegion',
                         'reporterGdp', 'reporterPopulation', 'reporter_gdp/capita',
                         'reporterlat', 'reporterlong',
-                        'partnerCode', 'partnerISO', 'partnerDesc', 
+                        'partnerCode', 'partnerISO', 'partnerDesc', 'partnerRegion',
                         'partnerGdp', 'partnerPopulation', 'partner_gdp/capita',
                         'partnerlat', 'partnerlong',
                         'exportFlow', 'importFlow', 'totalFlow', 'predicted_exportFlow', 'tradeRatio', 
@@ -75,8 +76,12 @@ if __name__ == "__main__":
                         'IdealPointDistance', 'Tariff']]
     print(df_final.shape)
     print(df_final.columns)
-    print(df_final) #59177
-    # print(df_final.dropna().shape) 48737
+    print(df_final['reporterRegion'])
+    print(df_final['partnerRegion'])
+    print(df_final['tradeRatio'])
+    print(df_final.isna().sum())
+    print(df_final) 
+    # print(df_final.dropna().shape) 
 
     os.makedirs("./backend/temp_df", exist_ok=True)
     df_final.to_parquet("./backend/temp_df/df_final.parquet")
