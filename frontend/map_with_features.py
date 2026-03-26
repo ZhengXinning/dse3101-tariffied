@@ -624,6 +624,7 @@ with tab1:
         # -------------------------------
         st_folium(m, use_container_width=True, height=550)
 
+    # Create comparison cards
     df_compare = pd.DataFrame(comparison_data)
 
     st.subheader("Trading Partner Overview")
@@ -638,9 +639,10 @@ with tab1:
                 <div style="
                         line-height: 1.2;
                         padding: 12px;
-                        border: 1px solid #E5E7EB;
+                        border: 1px solid rgba(128,128,128,0.5);
                         border-radius: 12px;
-                        background-color: #FFFFFF;
+                        background-color: var(--secondary-background-color);
+                        color: var(--text-color);
                         box-shadow: 0 2px 6px rgba(0,0,0,0.08);
                         ">
                     <div style="display:flex; align-items:center; gap:8px; margin-bottom: 5px;">
