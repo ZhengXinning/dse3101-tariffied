@@ -10,19 +10,20 @@ from folium.plugins import AntPath
 from folium import DivIcon, Tooltip
 from folium.features import GeoJsonTooltip
 
-
 import json
 import pycountry
 import plotly.express as px
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
+file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
 
 # -------------------------------
 # Load dataset
 # -------------------------------
-df = pd.read_csv(file_path, keep_default_na=False)
+df = pd.read_parquet(file_path)
+#print(df.columns)
+#print(df.head())
 
 # -------------------------------
 # Initialise session state
