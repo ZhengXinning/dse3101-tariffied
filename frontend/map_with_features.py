@@ -15,9 +15,15 @@ import pycountry
 import plotly.express as px
 import feedparser
 from pathlib import Path
+import anthropic
+import os
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
+
+load_dotenv()
+client = anthropic.Anthropic(api_key=os.getenv("dse3101-key"))
 
 # BASE_DIR = Path(__file__).resolve().parent
 # file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
@@ -174,8 +180,8 @@ def get_news():
         for entry in feed.entries[:20]:  # check more entries per source for keyword filtering
             title = entry.get("title", "")
             summary = entry.get("summary", "")
-            text = (title + " " + summary).lower()
-            if any(kw in text for kw in TRADE_KEYWORDS):
+            # text = (title + " " + summary).lower()
+            if any(kw in title for kw in TRADE_KEYWORDS):
                 # Parse published datetime
                 published = ""
                 if hasattr(entry, "published_parsed") and entry.published_parsed:
@@ -241,6 +247,12 @@ if "policies" not in st.session_state:
 
 if "last_news_policy" not in st.session_state:
     st.session_state.last_news_policy = None
+
+if "chat_messages" not in st.session_state:
+    st.session_state.chat_messages = []
+
+if "show_chat" not in st.session_state:
+    st.session_state.show_chat = False
 
 # -------------------------------
 # Page config
@@ -313,7 +325,28 @@ div[data-testid="stSlider"] {
 div.block-container {
     padding-top: 1rem;
 }
-</style>           
+
+/* Chat bubble styles */
+.chat-user {
+    background-color: #1D4ED8;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 12px 12px 2px 12px;
+    margin: 4px 0;
+    max-width: 80%;
+    margin-left: auto;
+    font-size: 13px;
+}
+.chat-assistant {
+    background-color: #F3F4F6;
+    color: #111827;
+    padding: 8px 12px;
+    border-radius: 12px 12px 12px 2px;
+    margin: 4px 0;
+    max-width: 85%;
+    font-size: 13px;
+}
+</style>
 
 <style>
 @keyframes flash-red {
@@ -334,7 +367,9 @@ div.block-container {
 """, unsafe_allow_html=True)
 
 
-st.markdown("""
+_title_col, _fab_col = st.columns([5, 1])
+with _title_col:
+    st.markdown("""
 <div style="margin-top: 20px;">
     <h2>Singapore Trade Opportunity Dashboard</h2>
     <div class="subtitle">
@@ -342,11 +377,105 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
+with _fab_col:
+    st.markdown('<div style="margin-top:30px;"></div>', unsafe_allow_html=True)
+    _chat_lbl = "✕ Close" if st.session_state.show_chat else "💬 Chat"
+    if st.button(_chat_lbl, key="chat_fab", use_container_width=True):
+        st.session_state.show_chat = not st.session_state.show_chat
+        st.rerun()
 
 # -------------------------------
-# Tab Creation
+# Chatbot helpers
 # -------------------------------
-tab1, tab2 = st.tabs(["Map & Charts", "Indicators"])
+def build_dashboard_context():
+    try:
+        ctx_origin = origin
+        ctx_region = region
+        ctx_industry = selected_industry
+        ctx_comparison = comparison_data
+        ctx_policies = st.session_state.policies
+    except NameError:
+        return "Dashboard data not yet loaded."
+
+    lines = [
+        f"Origin Country: {ctx_origin}",
+        f"Selected Region: {ctx_region}",
+        f"Selected Industry: {ctx_industry}",
+        "",
+        "Top Trading Partners currently displayed on the map:",
+    ]
+    for d in ctx_comparison:
+        lines.append(
+            f"  - {d['Country']} | Rank #{d['Rank']} | Risk Index: {d['Risk Index']:.2f} | "
+            f"Actual vs Expected: {d['Actual vs Expected']:.0f}% | "
+            f"Imports: {d['Imports %']:.2f}% | Exports: {d['Exports %']:.2f}%"
+        )
+    if ctx_policies:
+        lines.append("")
+        lines.append("Active Trade Policies:")
+        for p in ctx_policies:
+            lines.append(
+                f"  - {p['origin']} → {p['country']} ({p['industry']}) | "
+                f"Trade x{p['trade_multiplier']}, Risk x{p['risk_multiplier']}, AE +{p['ae_adjustment']}"
+            )
+    else:
+        lines += ["", "No active trade policies."]
+
+    all_countries_list = sorted(df["country"].unique().tolist())
+    all_industries_list = sorted(df["industry"].unique().tolist())
+    all_regions_list = sorted(df["region"].unique().tolist())
+    lines += [
+        "",
+        f"Dataset covers {len(df)} rows across {len(all_countries_list)} countries.",
+        f"Available industries: {', '.join(all_industries_list)}",
+        f"Available regions: {', '.join(all_regions_list)}",
+    ]
+    return "\n".join(lines)
+
+
+SYSTEM_PROMPT = """You are a knowledgeable Trade Assistant embedded inside the Singapore Trade Opportunity Dashboard.
+Your role is to help users understand trade data, interpret risk indices, compare trading partners, \
+and reason about policy simulation outcomes.
+
+You have access to a real-time snapshot of the current dashboard state (origin country, filters, \
+top-ranked partners and their metrics, and any active trade policies). Use this data to give \
+precise, insightful answers.
+
+Guidelines:
+- Be concise but thorough. Use bullet points when listing multiple items.
+- When discussing risk, remind users that Risk Index 0–30 = low (green), 31–70 = medium (yellow), 71–100 = high (red).
+- Actual vs Expected Trade <100% means untapped trade opportunity; >100% means potential overtrading.
+- If asked about something outside the dataset, say so clearly and suggest what the user could explore on the dashboard.
+- Do not make up data. Only use figures provided in the dashboard context below.
+
+Current Dashboard State:
+{context}
+"""
+
+
+def get_assistant_response(messages_history: list) -> str:
+    context = build_dashboard_context()
+    system = SYSTEM_PROMPT.format(context=context)
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1000,
+        system=system,
+        messages=messages_history,
+    )
+    return response.content[0].text
+
+
+# -------------------------------
+# Layout: right column opens when chat is toggled
+# -------------------------------
+if st.session_state.show_chat:
+    col_main, col_chat = st.columns([2.5, 1])
+else:
+    col_main = st.container()
+    col_chat = None
+
+with col_main:
+    tab1, tab2 = st.tabs(["Map & Charts", "Indicators"])
 
 # -------------------------------
 # Map & Charts Tab
@@ -971,6 +1100,78 @@ with tab1:
 with tab2:
     st.markdown("### Customise Risk Index Indicators")
     st.write("Create your own risk index by selecting which indicators to include in the calculation. You may observe how the risk index and partner rankings change in the Map & Charts tab.")
+
+
+# -------------------------------
+# Chat Panel (right column, visible when show_chat=True)
+# -------------------------------
+if st.session_state.show_chat and col_chat is not None:
+    with col_chat:
+        st.markdown("#### 💬 Trade Assistant")
+        st.markdown(
+            '<div class="subtitle" style="font-size:11px;">Ask me anything about the '
+            'trade data, risk indices, partner rankings, or active policies.</div>',
+            unsafe_allow_html=True
+        )
+
+        for i, prompt in enumerate([
+            "Which country has the lowest risk?",
+            "Untapped trade opportunities?",
+            "Summarise the top 5 partners.",
+            "How do policies affect risk?",
+        ]):
+            if st.button(prompt, key=f"suggest_{i}", use_container_width=True):
+                st.session_state.chat_messages.append({"role": "user", "content": prompt})
+                with st.spinner("Thinking…"):
+                    reply = get_assistant_response(st.session_state.chat_messages)
+                st.session_state.chat_messages.append({"role": "assistant", "content": reply})
+                st.rerun()
+
+        st.divider()
+
+        if not st.session_state.chat_messages:
+            st.markdown(
+                "<div style='color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;'>"
+                "Type a question below to get started.</div>",
+                unsafe_allow_html=True
+            )
+        for msg in st.session_state.chat_messages:
+            if msg["role"] == "user":
+                st.markdown(
+                    f'<div style="display:flex; justify-content:flex-end; margin:6px 0;">'
+                    f'<div class="chat-user">{msg["content"]}</div></div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f'<div style="display:flex; justify-content:flex-start; margin:6px 0;">'
+                    f'<div class="chat-assistant">{msg["content"]}</div></div>',
+                    unsafe_allow_html=True
+                )
+
+        st.divider()
+
+        user_input = st.text_input(
+            "Your question",
+            placeholder="e.g. Which country offers the best trade opportunity?",
+            label_visibility="collapsed",
+            key="chat_input"
+        )
+        send_col, clear_col = st.columns([3, 2])
+        with send_col:
+            send = st.button("Send ➤", use_container_width=True, key="chat_send")
+        with clear_col:
+            if st.session_state.chat_messages:
+                if st.button("🗑️ Clear", use_container_width=True, key="clear_chat"):
+                    st.session_state.chat_messages = []
+                    st.rerun()
+
+        if send and user_input.strip():
+            st.session_state.chat_messages.append({"role": "user", "content": user_input.strip()})
+            with st.spinner("Thinking…"):
+                reply = get_assistant_response(st.session_state.chat_messages)
+            st.session_state.chat_messages.append({"role": "assistant", "content": reply})
+            st.rerun()
 
 
 # -------------------------------
