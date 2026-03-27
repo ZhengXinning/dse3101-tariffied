@@ -32,7 +32,7 @@ TRADE_KEYWORDS = [
 POSITIVE_KEYWORDS = [
     "boost", "growth", "deal", "agreement", "cooperation", "rise", "gain",
     "opportunity", "strengthen", "recovery", "progress", "approval", "approve", 
-    "partnership", "expand", "benefit", "positive", "optimism", "rebound", "record"
+    "partnership", "expand", "benefit", "positive", "optimism", "rebound", "record", "friendship"
 ]
 
 NEGATIVE_KEYWORDS = [
@@ -70,6 +70,91 @@ def get_sentiment(text):
         return "negative"
     return "neutral"
 
+
+# Keyword → industry name (must match dataset values exactly)
+INDUSTRY_KEYWORD_MAP = {
+    "chip": "Electronics", "semiconductor": "Electronics", "electronic": "Electronics",
+    "tech": "Electronics", "circuit": "Electronics",
+    "oil": "Energy", "gas": "Energy", "fuel": "Energy", "opec": "Energy", "lng": "Energy",
+    "energy": "Energy", "coal": "Energy", "nuclear": "Energy",
+    "auto": "Automotive", "vehicle": "Automotive", "car": "Automotive", "ev ": "Automotive",
+    "pharmaceutical": "Pharmaceuticals", "drug": "Pharmaceuticals",
+    "vaccine": "Pharmaceuticals", "medicine": "Pharmaceuticals",
+    "chemical": "Chemicals", "fertilizer": "Chemicals",
+    "agriculture": "Agriculture", "food": "Agriculture", "grain": "Agriculture",
+    "wheat": "Agriculture", "soy": "Agriculture", "rice": "Agriculture", "corn": "Agriculture",
+    "machinery": "Machinery", "equipment": "Machinery", "industrial": "Machinery",
+    "financial": "Financial Services", "banking": "Financial Services",
+    "insurance": "Financial Services", "fintech": "Financial Services",
+}
+
+
+def extract_policy_from_article(title, all_origins, all_countries, all_industries):
+    """Heuristically extract a trade policy from a news article title."""
+    text = title.lower()
+
+    # --- Country detection ---
+    # Check for origin countries first (small list)
+    found_origins = [c for c in all_origins if c.lower() in text]
+    # Check for partner countries (also covers origins that are partners)
+    found_countries = [c for c in all_countries if c.lower() in text]
+
+    # Pick origin: prefer a found origin, else default to first origin
+    origin_result = found_origins[0] if found_origins else all_origins[0]
+
+    # Pick partner: first found country that differs from origin
+    partner_candidates = [c for c in found_countries if c != origin_result]
+    partner_result = partner_candidates[0] if partner_candidates else (
+        [c for c in all_countries if c != origin_result][0]
+    )
+
+    # --- Industry detection ---
+    found_industry = "All"
+    for kw, industry in INDUSTRY_KEYWORD_MAP.items():
+        if kw in text and industry in all_industries:
+            found_industry = industry
+            break
+
+    # --- Impact estimation ---
+    severe_negative = any(kw in text for kw in [
+        "tariff", "sanction", "ban", "embargo", "restriction", "hike", "retaliation", "penalty", "damage",
+    ])
+    trade_deal = any(kw in text for kw in [
+        "deal", "agreement", "fta", "free trade", "partnership", "cooperation", "treaty"
+    ])
+    sentiment = get_sentiment(title)
+
+    if severe_negative:
+        trade_mult = -1.5
+        risk_mult = 1.5
+        ae_adj = -10
+    elif trade_deal:
+        trade_mult = 1.5
+        risk_mult = -0.5
+        ae_adj = 10
+    elif sentiment == "negative":
+        trade_mult = -0.5
+        risk_mult = 0.5
+        ae_adj = -5
+    elif sentiment == "positive":
+        trade_mult = 0.5
+        risk_mult = -0.3
+        ae_adj = 5
+    else:
+        trade_mult = 0.0
+        risk_mult = 0.0
+        ae_adj = 0
+
+    return {
+        "origin": origin_result,
+        "country": partner_result,
+        "industry": found_industry,
+        "trade_multiplier": round(trade_mult, 1),
+        "risk_multiplier": round(risk_mult, 1),
+        "ae_adjustment": ae_adj,
+        "from_news": title,
+    }
+
 @st.cache_data(ttl=300)  # refresh every 5 minutes
 def get_news():
     feeds = [
@@ -86,7 +171,7 @@ def get_news():
 
     for source, url in feeds:
         feed = feedparser.parse(url)
-        for entry in feed.entries[:15]:  # check more entries per source for keyword filtering
+        for entry in feed.entries[:20]:  # check more entries per source for keyword filtering
             title = entry.get("title", "")
             summary = entry.get("summary", "")
             text = (title + " " + summary).lower()
@@ -153,6 +238,9 @@ df = pd.read_csv(file_path, keep_default_na=False)
 # -------------------------------
 if "policies" not in st.session_state:
     st.session_state.policies = []
+
+if "last_news_policy" not in st.session_state:
+    st.session_state.last_news_policy = None
 
 # -------------------------------
 # Page config
@@ -320,6 +408,14 @@ with tab1:
         st.markdown('<div class="policy-panel">', unsafe_allow_html=True)
         st.markdown("### Add Trade Policy")
 
+        if st.session_state.last_news_policy:
+            news_title = st.session_state.last_news_policy
+            short_title = news_title[:60] + "…" if len(news_title) > 60 else news_title
+            st.success(f"📰 Last added from news: *{short_title}*")
+            if st.button("Dismiss", key="dismiss_news_banner"):
+                st.session_state.last_news_policy = None
+                st.rerun()
+
         policy_origin = st.selectbox("Origin", sorted(df["origin"].unique()), key="p1")
         policy_country = st.selectbox("Partner Country", sorted(df["country"].unique()), key="p2")
         policy_industry = st.selectbox("Industry", ["All"] + sorted(df["industry"].unique()), key="p3")
@@ -348,9 +444,10 @@ with tab1:
         st.markdown("### Active Policies")
 
         for i, p in enumerate(st.session_state.policies):
+            news_tag = " 📰" if p.get("from_news") else ""
             st.write(
                 f"{i+1}. {p['origin']} → {p['country']} | {p['industry']} | "
-                f"Trade x{p['trade_multiplier']}, Risk x{p['risk_multiplier']}"
+                f"Trade x{p['trade_multiplier']}, Risk x{p['risk_multiplier']}{news_tag}"
             )
 
         if st.button("Clear All Policies"):
@@ -882,19 +979,31 @@ with tab2:
 with st.sidebar:
     st.markdown("# WORLD NEWS")
 
-    news = get_news()
+    with st.spinner("Loading news..."):
+        news = get_news()
 
     if not news:
         st.info("No trade/geopolitics news found at the moment. Try again shortly.")
     else:
-        for article in news:
+        all_origins = sorted(df["origin"].unique())
+        all_countries = sorted(df["country"].unique())
+        all_industries = sorted(df["industry"].unique())
+
+        for i, article in enumerate(news):
             is_negative = article["sentiment"] == "negative"
             alert_badge = '<span class="alert-flash">ALERT</span>' if is_negative else ""
             date_str = format_date(article["published"])
+            title_lower = article["title"].lower()
+            detected_origins = [c for c in all_origins if c.lower() in title_lower]
+            detected_partners = [c for c in all_countries if c.lower() in title_lower]
+            # Need at least one origin AND one distinct partner to enable the button
+            partner_only = [c for c in detected_partners if c not in detected_origins]
+            has_countries = bool(detected_origins and partner_only)
+
             st.markdown(f"""
-<div style="margin-bottom:10px;">
+<div style="margin-bottom:6px;">
   <div style="font-size:11px; font-weight:600; opacity:0.5; color:var(--text-color); margin-bottom:2px;">
-    {article['source']} 
+    {article['source']}
   </div>
   {alert_badge}
   <a href="{article['link']}" target="_blank"
@@ -905,5 +1014,22 @@ with st.sidebar:
     {date_str}
   </div>
 </div>
-<hr style="margin:6px 0; opacity:0.2;">
 """, unsafe_allow_html=True)
+
+            if has_countries:
+                if st.button("Add to Map", key=f"news_policy_{i}", use_container_width=True):
+                    policy = extract_policy_from_article(
+                        article["title"], all_origins, all_countries, all_industries
+                    )
+                    st.session_state.policies.append(policy)
+                    st.session_state.last_news_policy = article["title"]
+                    try:
+                        st.toast(
+                            f"Policy added: {policy['origin']} → {policy['country']} | {policy['industry']}",
+                            icon="📰"
+                        )
+                    except Exception:
+                        pass
+                    st.rerun()
+
+            st.markdown('<hr style="margin:6px 0; opacity:0.2;">', unsafe_allow_html=True)
