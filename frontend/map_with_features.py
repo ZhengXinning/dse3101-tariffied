@@ -177,7 +177,7 @@ def get_news():
 
     for source, url in feeds:
         feed = feedparser.parse(url)
-        for entry in feed.entries[:20]:  # check more entries per source for keyword filtering
+        for entry in feed.entries[:30]:  # check more entries per source for keyword filtering
             title = entry.get("title", "")
             summary = entry.get("summary", "")
             # text = (title + " " + summary).lower()
@@ -821,6 +821,31 @@ with tab1:
 
             flag_url = f"https://flagcdn.com/w40/{get_iso2(country).lower()}.png"
 
+            # Industry info section for popup
+            if selected_industry == "All":
+                country_industry_vols = (
+                    df_filtered[df_filtered["country"] == country]
+                    .groupby("industry")["trade_value"].sum()
+                    .sort_values(ascending=False)
+                    .head(3)
+                )
+                top3_rows = "".join([
+                    f"<div style='margin-left:8px;'>• {ind}: {vol:,.0f}</div>"
+                    for ind, vol in country_industry_vols.items()
+                ])
+                industry_html = f"<div style='margin-top:4px;'><b>Top 3 Industries:</b></div>{top3_rows}"
+            else:
+                all_industry_vols = (
+                    df_sim[(df_sim["origin"] == origin) & (df_sim["country"] == country)]
+                    .groupby("industry")["trade_value"].sum()
+                    .sort_values(ascending=False)
+                )
+                if selected_industry in all_industry_vols.index:
+                    ind_vol = all_industry_vols[selected_industry]
+                    industry_html = f"<div style='margin-top:4px;'><b>{selected_industry}</b>: {ind_vol:,.0f}</div>"
+                else:
+                    industry_html = f"<div style='margin-top:4px;'><b>{selected_industry}</b>: N/A</div>"
+
             popup_html = f"""
             <div style="font-family: Arial; font-size: 12px; padding: 8px;">
                 <div style="display:flex; align-items:center; gap:8px;">
@@ -836,6 +861,7 @@ with tab1:
 
                 <div><b>Imports</b>: {imports_vol:.2f}%</div>
                 <div><b>Exports</b>: {exports_vol:.2f}%</div>
+                {industry_html}
             </div>
             """
 
@@ -869,10 +895,11 @@ with tab1:
             comparison_data.append({
                 "Rank": rank,
                 "Country": country,
-                "Risk Index": row['risk_index'],      
-                "Actual vs Expected": weighted_ae, 
-                "Imports %": imports_vol,    
-                "Exports %": exports_vol 
+                "Risk Index": row['risk_index'],
+                "Actual vs Expected": weighted_ae,
+                "Imports %": imports_vol,
+                "Exports %": exports_vol,
+                "industry_html": industry_html
             })
 
         # -------------------------------
@@ -984,7 +1011,8 @@ with tab1:
                     <div style="margin-bottom: 3px;"> Risk Index: <span style="color:{text_color};"><b>{data['Risk Index']:.2f}</span></b></div>
                     <div style="margin-bottom: 3px;"> Actual vs Expected: <b>{data['Actual vs Expected']:.0f}%</b></div>
                     <div style="margin-bottom: 3px;"> Imports: {data['Imports %']:.2f}%</div>
-                    <div>Exports: {data['Exports %']:.2f}%</div>
+                    <div style="margin-bottom: 3px;">Exports: {data['Exports %']:.2f}%</div>
+                    {data['industry_html']}
                 </div>
             """, unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
@@ -1107,7 +1135,7 @@ with tab2:
 # -------------------------------
 if st.session_state.show_chat and col_chat is not None:
     with col_chat:
-        st.markdown("#### 💬 Trade Assistant")
+        st.markdown("#### Trade Assistant")
         st.markdown(
             '<div class="subtitle" style="font-size:11px;">Ask me anything about the '
             'trade data, risk indices, partner rankings, or active policies.</div>',
@@ -1115,10 +1143,10 @@ if st.session_state.show_chat and col_chat is not None:
         )
 
         for i, prompt in enumerate([
-            "Which country has the lowest risk?",
-            "Untapped trade opportunities?",
-            "Summarise the top 5 partners.",
-            "How do policies affect risk?",
+            "Which country do I have the lowest risk of trading with?",
+            "Which countries do I have untapped trade opportunities with?",
+            "Summarise my top 5 trading partners",
+            "How do my active policies affect my trade?",
         ]):
             if st.button(prompt, key=f"suggest_{i}", use_container_width=True):
                 st.session_state.chat_messages.append({"role": "user", "content": prompt})
@@ -1151,27 +1179,22 @@ if st.session_state.show_chat and col_chat is not None:
 
         st.divider()
 
-        user_input = st.text_input(
-            "Your question",
-            placeholder="e.g. Which country offers the best trade opportunity?",
-            label_visibility="collapsed",
+        user_input = st.chat_input(
+            "e.g. Which country offers the safest trade opportunity?",
             key="chat_input"
         )
-        send_col, clear_col = st.columns([3, 2])
-        with send_col:
-            send = st.button("Send ➤", use_container_width=True, key="chat_send")
-        with clear_col:
-            if st.session_state.chat_messages:
-                if st.button("🗑️ Clear", use_container_width=True, key="clear_chat"):
-                    st.session_state.chat_messages = []
-                    st.rerun()
 
-        if send and user_input.strip():
+        if user_input and user_input.strip():
             st.session_state.chat_messages.append({"role": "user", "content": user_input.strip()})
             with st.spinner("Thinking…"):
                 reply = get_assistant_response(st.session_state.chat_messages)
             st.session_state.chat_messages.append({"role": "assistant", "content": reply})
             st.rerun()
+        
+        if st.session_state.chat_messages:
+            if st.button("Clear Chat", use_container_width=True, key="clear_chat"):
+                st.session_state.chat_messages = []
+                st.rerun()
 
 
 # -------------------------------
@@ -1195,11 +1218,12 @@ with st.sidebar:
             alert_badge = '<span class="alert-flash">ALERT</span>' if is_negative else ""
             date_str = format_date(article["published"])
             title_lower = article["title"].lower()
-            detected_origins = [c for c in all_origins if c.lower() in title_lower]
-            detected_partners = [c for c in all_countries if c.lower() in title_lower]
+            # detected_origins = [c for c in all_origins if c.lower() in title_lower]
+            # detected_partners = [c for c in all_countries if c.lower() in title_lower]
             # Need at least one origin AND one distinct partner to enable the button
-            partner_only = [c for c in detected_partners if c not in detected_origins]
-            has_countries = bool(detected_origins and partner_only)
+            detected_countries = [c for c in all_countries if c.lower() in title_lower]
+            # partner_only = [c for c in detected_par if c not in detected_origins]
+            has_countries = bool(detected_countries) & (len(detected_countries) > 1)
 
             st.markdown(f"""
 <div style="margin-bottom:6px;">
