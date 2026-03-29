@@ -478,6 +478,43 @@ with col_main:
     tab1, tab2 = st.tabs(["Map & Charts", "Indicators"])
 
 # -------------------------------
+# Preparation for Indicators Tab
+# -------------------------------
+# Dictionary of Indicators
+INDICATORS = {
+    "Tariff": "tariff_rate",
+    "Transport Cost": "transport_cost",
+    "Fatality Rate": "fatality_rate",
+    "Violent Events": "violent_events",
+    "UN Voting Alignment": "un_vote_alignment",
+    "State Visits": "state_visits"
+}
+
+risk_col = st.session_state.get("risk_index", "risk_index")
+
+# Custom risk index calculation based on selected indicators in the Indicators tab
+if risk_col == "custom_risk_index":
+    selected_cols = st.session_state.get("selected_cols", [])
+
+    if len(selected_cols) > 0:
+        df["custom_risk_index"] = 0
+
+        for col in selected_cols:
+            if col not in df.columns:
+                continue 
+
+            if col == "un_vote_alignment":
+                score = (1 - df[col]) * 100
+            elif col == "state_visits":
+                score = (10 - df[col]) / 10 * 100
+            else:
+                score = df[col]
+
+            df["custom_risk_index"] += score
+
+        df["custom_risk_index"] /= len(selected_cols) # average the selected indicators - TEMPORARY (need see how backend calculates)
+
+# -------------------------------
 # Map & Charts Tab
 # -------------------------------
 with tab1:
@@ -624,7 +661,7 @@ with tab1:
     #function to find top5 countries for default
     def find_5(data):
         return (
-            data.groupby("country")["risk_index"]
+            data.groupby("country")[risk_col]
             .sum()
             .sort_values(ascending=True)
             .head(5)
@@ -665,9 +702,9 @@ with tab1:
     if country != []:
         filtered=filtered[filtered["country"].isin(country)]
 
-    else: # if no country selected, show top 5 countries by risk_index
+    else: # if no country selected, show top 5 countries by risk index
         top5_countries = (
-            filtered.groupby("country")["risk_index"]
+            filtered.groupby("country")[risk_col]
             .sum()
             .sort_values(ascending=True)
             .head(5)
@@ -683,7 +720,7 @@ with tab1:
     df_filtered = filtered[filtered["country"] != origin]
 
     top5 = (
-        df_filtered.groupby("country")["risk_index"]
+        df_filtered.groupby("country")[risk_col]
         .mean()
         .sort_values(ascending=True)   # lower = better
         .head(5)
@@ -692,7 +729,7 @@ with tab1:
     )
     
     country_scores = (
-        df_filtered.groupby("country")["risk_index"]
+        df_filtered.groupby("country")[risk_col]
         .mean()
         .to_dict()
     )
@@ -856,7 +893,7 @@ with tab1:
                 <hr style="margin:6px 0;">
 
                 <div>Rank: <b>#{rank}</b></div>
-                <div>Risk Index: <b>{row['risk_index']:.2f}</b></div>
+                <div>Risk Index: <b>{row[risk_col]:.2f}</b></div>
                 <div>Actual vs Expected: <b>{weighted_ae:.0f}%</b></div>
 
                 <div><b>Imports</b>: {imports_vol:.2f}%</div>
@@ -895,7 +932,7 @@ with tab1:
             comparison_data.append({
                 "Rank": rank,
                 "Country": country,
-                "Risk Index": row['risk_index'],
+                "Risk Index": row[risk_col],
                 "Actual vs Expected": weighted_ae,
                 "Imports %": imports_vol,
                 "Exports %": exports_vol,
@@ -1034,7 +1071,7 @@ with tab1:
             chart_data = (
             filtered.groupby("country")
             .agg(
-                risk_index=("risk_index", "mean"),
+                risk_value=(risk_col, "mean"),
                 trade_value=("trade_value", "sum"),
             )
             .reset_index()
@@ -1046,28 +1083,28 @@ with tab1:
                 least_risk_country = country
             else:
                 top5 = (
-                    chart_data.nlargest(5, "risk_index")["country"].tolist()
+                    chart_data.nlargest(5, "risk_value")["country"].tolist()
                 )
                 chart_countries = chart_data[chart_data["country"].isin(top5)]
-                least_risk_country = chart_countries.sort_values("risk_index", ascending=True).iloc[0]["country"]
+                least_risk_country = chart_countries.sort_values("risk_value", ascending=True).iloc[0]["country"]
             
-            chart_countries = chart_countries.sort_values("risk_index", ascending=True)
+            chart_countries = chart_countries.sort_values("risk_value", ascending=True)
             chart_sorted = chart_countries.copy()
-            chart_sorted["risk_index"] = (chart_countries["risk_index"]).round(0).astype(int)
+            chart_sorted["risk_display"] = (chart_countries["risk_value"]).round(0).astype(int)
             
     
             
-            chart_sorted = chart_sorted.sort_values('risk_index')
-            chart_sorted['colour'] = chart_sorted['risk_index'].apply(get_color)
+            chart_sorted = chart_sorted.sort_values('risk_display')
+            chart_sorted['colour'] = chart_sorted['risk_display'].apply(get_color)
 
             fig1 = px.bar(
-                chart_sorted.sort_values('risk_index', ascending=False),
-                x='risk_index',
+                chart_sorted.sort_values('risk_display', ascending=False),
+                x='risk_display',
                 y='country',
                 orientation='h',
-                text='risk_index',
+                text='risk_display',
                 labels={
-                    'risk_index': 'Risk Index',
+                    'risk_display': 'Risk Index',
                     'country': 'Country'
                 },
                 color='colour',
@@ -1129,6 +1166,21 @@ with tab2:
     st.markdown("### Customise Risk Index Indicators")
     st.write("Create your own risk index by selecting which indicators to include in the calculation. You may observe how the risk index and partner rankings change in the Map & Charts tab.")
 
+    user_selections = {}
+
+    for label, col in INDICATORS.items():
+        user_selections[col] = st.checkbox(label, value=True, key=f"check_{col}")
+
+    if st.button("Generate Custom Risk Index"):
+        selected_cols = [col for col, selected in user_selections.items() if selected]
+
+        if len(selected_cols) == 0:
+            st.error("Select at least one indicator.")
+        else:
+            # store only selection (NOT computation)
+            st.session_state.selected_cols = selected_cols
+            st.session_state.risk_index = "custom_risk_index"
+            st.success("Custom Risk Index Generated! Check the Map & Charts tab.")
 
 # -------------------------------
 # Chat Panel (right column, visible when show_chat=True)
