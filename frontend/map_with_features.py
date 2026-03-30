@@ -285,27 +285,41 @@ h2, h3 {
 </style>
             
 <style>
-/* Default (light mode) */
 .legend-box {
     position: fixed;
     bottom: 10px;
-    left: 10px;
+    right: 10px;
     z-index: 1000;
-    background-color: #F9FAFB;
+    background-color: #f0f2f6;
     color: #111827;
-    padding: 12px;
+    padding: 10px 12px;
     border-radius: 8px;
-    border: 1px solid #E5E7EB;
+    border: 1px solid rgba(128,128,128,0.3);
     box-shadow: 0 2px 6px rgba(0,0,0,0.25);
     font-size: 13px;
     max-width: 260px;
 }
 
-/* Dark mode override */
-.stApp[data-theme="dark"] .legend-box {
-    background-color: #1F2937;
-    color: #F9FAFB;
-    border: 1px solid #374151;
+.legend-box summary {
+    cursor: pointer;
+    font-weight: bold;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    user-select: none;
+}
+.legend-box summary::-webkit-details-marker { display: none; }
+
+.legend-toggle-icon { font-size: 11px; }
+details.legend-details[open] .legend-toggle-icon::after { content: "▼"; }
+details.legend-details:not([open]) .legend-toggle-icon::after { content: "▲"; }
+
+[data-theme="dark"] .legend-box {
+    background-color: #262730 !important;
+    color: #fafafa !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
 }
 </style>
             
@@ -379,7 +393,7 @@ with _title_col:
 """, unsafe_allow_html=True)
 with _fab_col:
     st.markdown('<div style="margin-top:30px;"></div>', unsafe_allow_html=True)
-    _chat_lbl = "✕ Close" if st.session_state.show_chat else "💬 Chat"
+    _chat_lbl = "✕ Close" if st.session_state.show_chat else "Chat"
     if st.button(_chat_lbl, key="chat_fab", use_container_width=True):
         st.session_state.show_chat = not st.session_state.show_chat
         st.rerun()
@@ -509,19 +523,18 @@ with tab1:
     # -------------------------------
     # Fixed-position legend/info over map
     # -------------------------------
-    show_legend = st.checkbox("Show Legend / Info", value=True)
-
-    if show_legend:
-        st.markdown(
+    st.markdown(
         """
         <div class="legend-box">
-            <b>Legend / Info</b><br>
-            <hr style="margin:6px 0;">
-            <div><b>Risk Index:</b> 0–100 (lower = better)</div>
-            <div><b>Marker Color:</b> Green = low risk, Yellow = medium risk, Red = high risk</div>
-            <div><b>Actual vs Expected Trade:</b> <100% = trade opportunities present, >100% = potentially overtrading</div>
-            <div><b>Arrow Width:</b> Proportional to trade with Origin Country (% of OC GDP)</div>
-            <div>Click on markers for more trade information</div>
+            <details class="legend-details" open>
+                <summary>Legend / Info <span class="legend-toggle-icon"></span></summary>
+                <hr style="margin:6px 0;">
+                <div><b>Risk Index:</b> 0–100 (lower = better)</div>
+                <div><b>Marker Color:</b> Green = low risk, Yellow = medium risk, Red = high risk</div>
+                <div><b>Actual vs Expected Trade:</b> &lt;100% = trade opportunities present, &gt;100% = potentially overtrading</div>
+                <div><b>Arrow Width:</b> Proportional to trade with Origin Country (% of OC GDP)</div>
+                <div>Click on markers for more trade information</div>
+            </details>
         </div>
         """,
         unsafe_allow_html=True
