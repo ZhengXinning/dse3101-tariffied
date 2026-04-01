@@ -180,8 +180,8 @@ def get_news():
         for entry in feed.entries[:30]:  # check more entries per source for keyword filtering
             title = entry.get("title", "")
             summary = entry.get("summary", "")
-            # text = (title + " " + summary).lower()
-            if any(kw in title for kw in TRADE_KEYWORDS):
+            text = (title + " " + summary).lower()
+            if any(kw in text for kw in TRADE_KEYWORDS):
                 # Parse published datetime
                 published = ""
                 if hasattr(entry, "published_parsed") and entry.published_parsed:
@@ -324,22 +324,7 @@ div.block-container {
 }
 </style>
 
-<style>
-@keyframes flash-red {
-    0%, 100% { background-color: #EF4444; opacity: 1; }
-    50%       { background-color: #eb7a7a; opacity: 0.9; }
-}
-.alert-flash {
-    animation: flash-red 1.2s ease-in-out infinite;
-    color: #F9FAFB;
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 10px;
-    font-weight: 700;
-    white-space: nowrap;
-    display: inline-block;
-}
-</style>  
+  
 """, unsafe_allow_html=True)
 
 
@@ -1253,9 +1238,21 @@ with st.sidebar:
         all_countries = sorted(df["country"].unique())
         all_industries = sorted(df["industry"].unique())
 
-        for i, article in enumerate(news):
-            is_negative = article["sentiment"] == "negative"
-            alert_badge = '<span class="alert-flash">ALERT</span>' if is_negative else ""
+        # Sort news so articles mentioning selected origin/partners/region appear first
+        try:
+            filter_terms = [origin.lower()]
+            if country:
+                filter_terms += [c.lower() for c in country]
+            if region != "All":
+                filter_terms.append(region.lower())
+            def news_relevance(a):
+                text = (a["title"] + " " + a.get("summary", "")).lower()
+                return -sum(term in text for term in filter_terms)
+            display_news = sorted(news, key=news_relevance)
+        except NameError:
+            display_news = news
+
+        for i, article in enumerate(display_news):
             date_str = format_date(article["published"])
             title_lower = article["title"].lower()
             # detected_origins = [c for c in all_origins if c.lower() in title_lower]
@@ -1270,7 +1267,6 @@ with st.sidebar:
   <div style="font-size:11px; font-weight:600; opacity:0.5; color:var(--text-color); margin-bottom:2px;">
     {article['source']}
   </div>
-  {alert_badge}
   <a href="{article['link']}" target="_blank"
      style="font-size:13px; font-weight:600; text-decoration:none; color:var(--text-color);">
     {article['title']}
