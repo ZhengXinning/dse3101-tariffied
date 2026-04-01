@@ -48,6 +48,23 @@ if __name__ == "__main__":
     ln_ideal_point_distance, ln_tariff, ln_repPop, ln_partPop,
     predicted_exportFlow, tradeRatio
     """
+
+    risk = pd.read_parquet('./backend/temp_df/df_risk.parquet')
+    df_risk = risk.copy()
+    print(df_risk.shape)
+    """
+    Index(['reporter_iso', 'Reference area', 'partner_iso', 'Counterpart area',    
+       'year', 'transptCost', 'fxChange', 'IdealPointDistance', 'stateVisits', 
+       'repFatalities', 'repEvents', 'partFatalities', 'partEvents',
+       'totalFdi', 'transptCost_weighted', 'fxChange_weighted',
+       'IdealPointDistance_weighted', 'stateVisits_weighted',
+       'repFatalities_weighted', 'repEvents_weighted',
+       'partFatalities_weighted', 'partEvents_weighted', 'totalFdi_weighted',  
+       'Risk_Index_Raw', 'Risk_Index_Normalized'],
+      dtype='str')
+    """
+
+    # Merge import data
     df_import_comb = []
     for country_code, urls in countries_config.items():
         # Load and merge data
@@ -56,13 +73,21 @@ if __name__ == "__main__":
 
     df_import_comb = pd.concat(df_import_comb, ignore_index=True)
     df_final = df_gravity.merge(df_import_comb, how='left', on=['refYear', 'reporterCode', 'reporterISO', 'reporterDesc', 'partnerCode', 'partnerISO', 'partnerDesc', 'cmdCode', 'cmdDesc'])
+    
+    # Create total flow col
     df_final['totalFlow'] = df_final['exportFlow'] + df_final['importFlow']
+    
+    # Create total trade to GDP ratio col
     df_final['reporterTradePctGdp'] = df_final['totalFlow'] / df_final['reporterGdp']
     df_final['partnerTradePctGdp'] = df_final['totalFlow'] / df_final['partnerGdp']
+    
+    # Create region cols
     df_iso = df_isoregion_clean()
     df_final = df_final.merge(df_iso, how='left', left_on='reporterISO', right_on='alpha-3').rename(columns={'region':'reporterRegion'})
     df_final = df_final.merge(df_iso, how='left', left_on='partnerISO', right_on='alpha-3').rename(columns={'region':'partnerRegion'})
-    df_final['riskIndex'] = 100
+    
+    # Weighted risk index cols
+    df_final = df_final.merge(df_risk, how='left', left_on=['refYear', 'reporterISO', 'partnerISO'], right_on=['year', 'reporter_iso', 'partner_iso'])
     df_final = df_final[['refYear', 'cmdCode', 'cmdDesc',
                         'reporterCode', 'reporterISO', 'reporterDesc', 'reporterRegion',
                         'reporterGdp', 'reporterPopulation', 'reporter_gdp/capita',
@@ -71,9 +96,12 @@ if __name__ == "__main__":
                         'partnerGdp', 'partnerPopulation', 'partner_gdp/capita',
                         'partnerlat', 'partnerlong',
                         'exportFlow', 'importFlow', 'totalFlow', 'predicted_exportFlow', 'tradeRatio', 
-                        'riskIndex',
                         'reporterTradePctGdp', 'partnerTradePctGdp',
-                        'IdealPointDistance', 'Tariff']]
+                        'transptCost_weighted', 'fxChange_weighted',
+                        'IdealPointDistance_weighted', 'stateVisits_weighted',
+                        'repFatalities_weighted', 'repEvents_weighted',
+                        'partFatalities_weighted', 'partEvents_weighted', 'totalFdi_weighted',  
+                        'Risk_Index_Raw', 'Risk_Index_Normalized']]
     print(df_final.shape)
     print(df_final.columns)
     print(df_final['reporterRegion'])
@@ -81,7 +109,8 @@ if __name__ == "__main__":
     print(df_final['tradeRatio'])
     print(df_final.isna().sum())
     print(df_final) 
-    # print(df_final.dropna().shape) 
+    df_final1 = df_final.dropna()
+    print(df_final1[['refYear', 'reporterDesc', 'partnerDesc', 'Risk_Index_Normalized']].tail(5))
 
     os.makedirs("./backend/temp_df", exist_ok=True)
     df_final.to_parquet("./backend/temp_df/df_final.parquet")
