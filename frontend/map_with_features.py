@@ -236,7 +236,7 @@ df = df.rename(columns={
      "Risk_Index_Normalized": "risk_index",
      "reporterTradePctGdp": "origin_trade_pct_gdp",
      "partnerTradePctGdp": "trade_pct_gdp",
-     "Tariff": "tariff_rate"
+     
 })
 
 df=df[df["year"] ==2021]
@@ -451,12 +451,15 @@ with col_main:
 # -------------------------------
 # Dictionary of Indicators
 INDICATORS = {
-    "Tariff": "tariff_rate",
-    "Transport Cost": "transport_cost",
-    "Fatality Rate": "fatality_rate",
-    "Violent Events": "violent_events",
-    "UN Voting Alignment": "un_vote_alignment",
-    "State Visits": "state_visits"
+    "Transport Cost": "transptCost_weighted",
+    "COUNTERPART/REF Exchange Pct Change":"fxChange_weighted",
+    "Ideal Point distance": "IdealPointDistance_weighted",
+    "Origin Country fatalities": "repFatalities_weighted",
+    "Partner Country fatalities":"partFatalities_weighted",
+    "Origin Country Violent events": "repEvents_weighted",
+    "Partner Country Violent events": "partEvents_weighted",
+    "Total FDI": "totalFdi_weighted",
+    "State Visits": "stateVisits_weighted"
 }
 
 risk_col = st.session_state.get("risk_index", "risk_index")
@@ -472,16 +475,18 @@ if risk_col == "custom_risk_index":
             if col not in df.columns:
                 continue 
 
-            if col == "un_vote_alignment":
-                score = (1 - df[col]) * 100
-            elif col == "state_visits":
-                score = (10 - df[col]) / 10 * 100
+        
             else:
                 score = df[col]
 
             df["custom_risk_index"] += score
 
-        df["custom_risk_index"] /= len(selected_cols) # average the selected indicators - TEMPORARY (need see how backend calculates)
+        max=df["custom_risk_index"].max()
+        min=df["custom_risk_index"].min()
+        df["custom_risk_index"]= 100*( (df["custom_risk_index"] -min)/ (max-min)  )   
+    
+
+
 
 # -------------------------------
 # Map & Charts Tab
