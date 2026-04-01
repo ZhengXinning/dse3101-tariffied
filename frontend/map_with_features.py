@@ -19,14 +19,14 @@ import anthropic
 import os
 from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent
-file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
+#BASE_DIR = Path(__file__).resolve().parent
+#file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
 
 load_dotenv()
 client = anthropic.Anthropic(api_key=os.getenv("dse3101-key"))
 
-# BASE_DIR = Path(__file__).resolve().parent
-# file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
+BASE_DIR = Path(__file__).resolve().parent
+file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
 
 TRADE_KEYWORDS = [
     "trade", "tariff", "geopolit", "sanction", "export", "import",
@@ -203,41 +203,49 @@ def get_news():
 # -------------------------------
 # Load dataset
 # -------------------------------
-df = pd.read_csv(file_path, keep_default_na=False)
+#df = pd.read_csv(file_path, encoding='latin1', keep_default_na=False)
 
-#df = pd.read_parquet(file_path)
-#df = df.rename(columns={
-    # "refYear": "year",
-    # "cmdCode": "industry_code",
-    # "cmdDesc": "industry",
-    # "reporterCode": "origin_code",
-    # "reporterISO": "origin_iso",
-    # "reporterDesc": "origin",
-    # "reporterRegion": "origin_region",
-    # "reporterGdp": "origin_gdp",
-    # "reporterPopulation": "origin_population",
-    # "reporter_gdp/capita": "origin_gdp_per_capita",
-    # "reporterlat": "origin_latitude",
-    # "reporterlong": "origin_longitude",
-    # "partnerCode": "partner_code",
-    # "partnerISO": "partner_iso",
-    # "partnerDesc": "country",
-    # "partnerRegion": "region",
-    # "partnerGdp": "partner_gdp",
-    # "partnerPopulation": "partner_population",
-    # "partner_gdp/capita": "partner_gdp_per_capita",
-    # "partnerlat": "latitude",
-    # "partnerlong": "longitude",
-    # "exportFlow": "exports_vol",
-    # "importFlow": "imports_vol",
-    # "totalFlow": "trade_value",
-    # "predicted_exportFlow": "predicted_exports",
-    # "tradeRatio": "actual_vs_expected",
-    # "riskIndex": "risk_index",
-    # "reporterTradePctGdp": "origin_trade_pct_gdp",
-    # "partnerTradePctGdp": "trade_pct_gdp",
-    # "Tariff": "tariff_rate"
-#})
+df = pd.read_parquet(file_path)
+df = df.rename(columns={
+     "refYear": "year",
+     "cmdCode": "industry_code",
+     "cmdDesc": "industry",
+     "reporterCode": "origin_code",
+     "reporterISO": "origin_iso",
+     "reporterDesc": "origin",
+     "reporterRegion": "origin_region",
+     "reporterGdp": "origin_gdp",
+     "reporterPopulation": "origin_population",
+     "reporter_gdp/capita": "origin_gdp_per_capita",
+     "reporterlat": "origin_latitude",
+     "reporterlong": "origin_longitude",
+     "partnerCode": "partner_code",
+     "partnerISO": "partner_iso",
+     "partnerDesc": "country",
+     "partnerRegion": "region",
+     "partnerGdp": "partner_gdp",
+     "partnerPopulation": "partner_population",
+     "partner_gdp/capita": "partner_gdp_per_capita",
+     "partnerlat": "latitude",
+     "partnerlong": "longitude",
+     "exportFlow": "exports_vol",
+     "importFlow": "imports_vol",
+     "totalFlow": "trade_value",
+     "predicted_exportFlow": "predicted_exports",
+     "tradeRatio": "actual_vs_expected",
+     "Risk_Index_Normalized": "risk_index",
+     "reporterTradePctGdp": "origin_trade_pct_gdp",
+     "partnerTradePctGdp": "trade_pct_gdp",
+     "Tariff": "tariff_rate"
+})
+
+df=df[df["year"] ==2021]
+df=df[df["risk_index"]>0]
+df["industry"]=df["industry"].str.split(';').str[0]
+df["total_export"]=df.groupby(["origin","country"])["exports_vol"].transform("sum")
+df["industry_weight"]=df["exports_vol"]/df["total_export"]
+
+
 
 # -------------------------------
 # Initialise session state
@@ -627,7 +635,7 @@ with tab1:
     
     #Reducing the number of countries that can be selected by region
     Clist= countries
-    Clist.remove(origin)
+    
     if region != "All":
             Clist= filter_region(region)
 
@@ -710,8 +718,8 @@ with tab1:
     # imports/exports over gdp
     country_totals = df_filtered.groupby('country').apply(
         lambda x: pd.Series({
-            'imports_pct': ((x['imports_vol'] * x['trade_pct_gdp'])/ x['trade_value']).sum(),
-            'exports_pct': ((x['exports_vol'] * x['trade_pct_gdp'])/ x['trade_value']).sum(),
+            'imports_pct': ((x['imports_vol'] * x['trade_pct_gdp'])/ x['trade_value']).sum()*100,
+            'exports_pct': ((x['exports_vol'] * x['trade_pct_gdp'])/ x['trade_value']).sum()*100,
             'arrow_width_factor': x['trade_pct_gdp'].sum()
         })
     ).to_dict('index')
@@ -784,8 +792,10 @@ with tab1:
         # Origin coordinates
         ORIGIN_COORDS = {
             "Singapore": (1.3521, 103.8198),
-            "United States of America": (37.09, -95.71),
-            "China": (35.86, 104.19)
+            "USA": (37.09, -95.71),
+            "China": (35.86, 104.19),
+            "Japan": (36,138),
+            "Germany": (51,9)
         }
 
         origin_coords = ORIGIN_COORDS[origin]
