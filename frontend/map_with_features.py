@@ -497,9 +497,12 @@ with tab1:
 
     # Add origin selector
     with col1:
+        origin_options = sorted(df["origin"].unique())
+        default_origin_idx = origin_options.index("Singapore") if "Singapore" in origin_options else 0
         origin = st.selectbox(
             "Origin Country",
-            sorted(df["origin"].unique())
+            origin_options,
+            index=default_origin_idx
         )
 
     # Region Searchbox
