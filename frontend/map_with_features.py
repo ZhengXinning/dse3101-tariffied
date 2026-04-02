@@ -171,14 +171,16 @@ def get_news():
         ("Reuters World", "https://feeds.reuters.com/reuters/worldNews"),
         ("Al Jazeera Economy", "https://www.aljazeera.com/xml/rss/all.xml"),
         ("Guardian World", "https://www.theguardian.com/world/rss"), 
-        ("Reuters Energy", "https://news.google.com/rss/search?q=site:reuters.com+(oil+OR+gas+OR+energy+OR+OPEC)+when:3d&hl=en-US&gl=US&ceid=US:en")
+        ("Reuters Energy", "https://news.google.com/rss/search?q=site:reuters.com+(oil+OR+gas+OR+energy+OR+OPEC)+when:3d&hl=en-US&gl=US&ceid=US:en"), 
+        ("South China Morning Post", "https://www.scmp.com/rss/91/feed/"), 
+        ("CNA", "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml")
     ]
 
     articles = []
 
     for source, url in feeds:
         feed = feedparser.parse(url)
-        for entry in feed.entries[:30]:  # check more entries per source for keyword filtering
+        for entry in feed.entries[:20]:  # check more entries per source for keyword filtering
             title = entry.get("title", "")
             summary = entry.get("summary", "")
             text = (title + " " + summary).lower()
