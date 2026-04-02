@@ -46,71 +46,57 @@ def pca_risk_index(
     risk_columns,
     direction_map=None,
     log_transform_cols=None,
-    anchor_variable=None,
     return_all=True
 ):
 
     df_out = df[risk_columns].copy()
-    # Log transform 
-    if log_transform_cols is not None:
+
+    # Log transform
+    if log_transform_cols:
         for col in log_transform_cols:
-            if col in df_out.columns:
+            if col in df_out:
                 df_out[col] = np.log1p(df_out[col])
 
-    # Align direction 
-    if direction_map is not None:
+    # direction
+    if direction_map:
         for col, sign in direction_map.items():
-            if col in df_out.columns:
-                df_out[col] = df_out[col] * sign
+            if col in df_out:
+                df_out[col] *= sign
 
-    # Drop missing
+    # drop NA
     df_out = df_out.dropna()
 
-    # Standardize
+    # standardize
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(df_out)
 
+    X_scaled_df = pd.DataFrame(
+        X_scaled,
+        columns=df_out.columns,
+        index=df_out.index
+    )
+
     # PCA
     pca = PCA(n_components=1)
-    pc1_scores = pca.fit_transform(X_scaled).flatten()
+    pc1_scores = pca.fit_transform(X_scaled_df).flatten()
     loadings = pca.components_[0]
 
-    # Fix PCA sign 
-    if anchor_variable is not None and anchor_variable in df_out.columns:
-        anchor_idx = df_out.columns.get_loc(anchor_variable)
-        if loadings[anchor_idx] < 0:
-            pc1_scores *= -1
-            loadings *= -1
-    else:
-        # fallback: majority sign
-        if np.sum(loadings) < 0:
-            pc1_scores *= -1
-            loadings *= -1
-
-    # Weighted indexes
-    X_scaled_df = pd.DataFrame(
-        X_scaled, columns=df_out.columns, index=df_out.index
-    )
-
+    # Weighted contributions
     weighted_df = X_scaled_df.mul(loadings, axis=1)
+
+    # Risk index 
+    # We do not normalise here as further merging is needed and we want to preserve the relative magnitudes of the raw index for now. 
+    # Normalization can be done after merging with the main df in final_df.py
     risk_index_raw = weighted_df.sum(axis=1)
 
-    # Normalize to 0-100
-    risk_index = 100 * (
-        (risk_index_raw - risk_index_raw.min()) /        
-        (risk_index_raw.max() - risk_index_raw.min())
-    )
-
-    # Output
     df_result = df.loc[df_out.index].copy()
+    df_result["Risk_Index_Raw"] = risk_index_raw
 
-    # Add weighted columns
+    # add weighted columns
     for col in weighted_df.columns:
         df_result[f"{col}_weighted"] = weighted_df[col]
 
-    df_result["Risk_Index_Raw"] = risk_index_raw
-    df_result["Risk_Index_Normalized"] = risk_index
-
+    # outputs
     weights = pd.Series(loadings, index=df_out.columns)
     explained_var = pca.explained_variance_ratio_[0]
 
@@ -124,7 +110,6 @@ def equal_weight_risk_index(
     risk_columns,
     direction_map=None,
     log_transform_cols=None,
-    normalize=True
 ):
 
     df_out = df[risk_columns].copy()
@@ -150,13 +135,6 @@ def equal_weight_risk_index(
 
     # Equal-weight index
     index = X_scaled.mean(axis=1)
-
-    # Normalize
-    if normalize:
-        index = 100 * (
-            (index - index.min()) /
-            (index.max() - index.min())
-        )
 
     # Output
     df_result = df.loc[df_out.index].copy()
@@ -225,7 +203,7 @@ if __name__ == "__main__":
     df_5 = df_4.merge(df_fdi, left_on=['REF_AREA', 'COUNTERPART_AREA','TIME_PERIOD'], right_on=['COUNTRY.ID', 'COUNTERPART_COUNTRY.ID','TIME_PERIOD'], how='left')
     df_5 = df_5.drop(columns=['COUNTRY.ID' , 'COUNTERPART_COUNTRY.ID' , 	'Inward FDI' ,	'Outward FDI'])
 
-    df_final = df_5.dropna()
+    df_final = df_5.dropna().reset_index(drop=True)
     df_final = df_final.rename(columns={
         'REF_AREA': 'reporter_iso',
         'COUNTERPART_AREA': 'partner_iso',
@@ -250,8 +228,7 @@ if __name__ == "__main__":
     df_final,
     risk_columns=risk_columns,
     direction_map=direction_map,
-    log_transform_cols=log_cols,
-    anchor_variable="partner_fatalities")
+    log_transform_cols=log_cols)
 
     print(df_equal_weight_risk)
     print(weights)

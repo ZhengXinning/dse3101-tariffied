@@ -101,16 +101,18 @@ if __name__ == "__main__":
                         'IdealPointDistance_weighted', 'stateVisits_weighted',
                         'repFatalities_weighted', 'repEvents_weighted',
                         'partFatalities_weighted', 'partEvents_weighted', 'totalFdi_weighted',  
-                        'Risk_Index_Raw', 'Risk_Index_Normalized']]
+                        'Risk_Index_Raw']]
     print(df_final.shape)
     print(df_final.columns)
     print(df_final['reporterRegion'])
     print(df_final['partnerRegion'])
     print(df_final['tradeRatio'])
     print(df_final.isna().sum())
+    print(df_final['Risk_Index_Raw'].describe())
+    print(df_final[(df_final['reporterISO'] == 'CHN') & (df_final['partnerISO'] == 'NOR') & (df_final['refYear'] == 2021)])
     print(df_final) 
-    df_final1 = df_final.dropna()
-    print(df_final1[['refYear', 'reporterDesc', 'partnerDesc', 'Risk_Index_Normalized']].tail(5))
+    # df_final1 = df_final.dropna()
+    # print(df_final1[['refYear', 'reporterDesc', 'partnerDesc', 'Risk_Index_Normalized']].tail(5))
 
     os.makedirs("./backend/temp_df", exist_ok=True)
     df_final.to_parquet("./backend/temp_df/df_final.parquet")
