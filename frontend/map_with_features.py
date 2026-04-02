@@ -234,10 +234,9 @@ df = df.rename(columns={
      "totalFlow": "trade_value",
      "predicted_exportFlow": "predicted_exports",
      "tradeRatio": "actual_vs_expected",
-     "Risk_Index_Raw": "risk_index",
      "reporterTradePctGdp": "origin_trade_pct_gdp",
      "partnerTradePctGdp": "trade_pct_gdp",
-     
+     "Risk_Index_Raw": "risk_index"
 })
 
 df=df[df["year"] ==2021]
@@ -563,7 +562,7 @@ with tab1:
             "Origin Country",
             origin_options,
             index=default_origin_idx
-        )    
+        )
 
     # Region Searchbox
     regions = ["All"] + sorted(df["region"].unique()) # list of regions
