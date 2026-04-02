@@ -1139,13 +1139,16 @@ with tab1:
         # Interpretation
         # -------------------------------
         st.markdown("### Interpretation")
-        most_compat_country = chart_sorted.iloc[0]["country"]
+        if chart_sorted.empty: # no data after filtering
+            st.info("No data for selected filters. Adjust your filters to see trade insights.")
+        else:
+            most_compat_country = chart_sorted.iloc[0]["country"]
 
-        st.info(
-            f"{most_compat_country} emerges as the strongest partner amongst countries in {region} region based on risk index. "
-            f"The selected industry ({selected_industry}) shows varying trade intensity across countries, "
-            "highlighting potential specialization opportunities."
-        )
+            st.info(
+                f"{most_compat_country} emerges as the strongest partner amongst countries in {region} region based on risk index. "
+                f"The selected industry ({selected_industry}) shows varying trade intensity across countries, "
+                "highlighting potential specialization opportunities."
+            )
 
 # -------------------------------
 # Indicators Tab
