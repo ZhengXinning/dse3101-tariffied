@@ -3,6 +3,7 @@
 # -------------------------------
 import pandas as pd
 import streamlit as st
+import matplotlib.pyplot as plt
 
 from streamlit_folium import st_folium
 import folium
@@ -23,7 +24,7 @@ from dotenv import load_dotenv
 #file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
 
 load_dotenv()
-client = anthropic.Anthropic(api_key=os.getenv("dse3101-key"))
+client = anthropic.Anthropic(api_key=os.getenv("DSE3101_KEY"))
 
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
@@ -205,7 +206,7 @@ def get_news():
 # -------------------------------
 #df = pd.read_csv(file_path, encoding='latin1', keep_default_na=False)
 
-df = pd.read_parquet(file_path)
+df = pd.read_parquet(file_path, engine = "fastparquet")
 df = df.rename(columns={
      "refYear": "year",
      "cmdCode": "industry_code",
@@ -233,7 +234,7 @@ df = df.rename(columns={
      "totalFlow": "trade_value",
      "predicted_exportFlow": "predicted_exports",
      "tradeRatio": "actual_vs_expected",
-     "Risk_Index_Normalized": "risk_index",
+     "Risk_Index_Raw": "risk_index",
      "reporterTradePctGdp": "origin_trade_pct_gdp",
      "partnerTradePctGdp": "trade_pct_gdp",
      
@@ -245,7 +246,43 @@ df["industry"]=df["industry"].str.split(';').str[0]
 df["total_export"]=df.groupby(["origin","country"])["exports_vol"].transform("sum")
 df["industry_weight"]=df["exports_vol"]/df["total_export"]
 
+# -------------------------------
+# Use ISO-3 to match with pycountry and geo json
+# -------------------------------
+df["iso3"] = df["partner_iso"]   # for partner countries
+df["origin_iso3"] = df["origin_iso"]  # for origin
 
+# -------------------------------
+# Standard display names (UI only)
+# -------------------------------
+display_names = {
+    "KOR": "South Korea",
+    "USA": "United States",
+    "RUS": "Russia",
+    "LAO": "Laos",
+    "BRN": "Brunei",
+    "TUR": "Turkey",
+    "CZE": "Czech Republic",
+    "SVK": "Slovakia",
+    "MKD": "North Macedonia",
+    "DOM": "Dominican Republic",
+}
+
+df["country_display"] = df["partner_iso"].map(display_names).fillna(df["country"])
+
+# Mapping: display → actual country name
+display_to_country = (
+    df.drop_duplicates("country_display")
+      .set_index("country_display")["country"]
+      .to_dict()
+)
+
+# Reverse mapping (for showing policies later)
+country_to_display = (
+    df.drop_duplicates("country")
+      .set_index("country")["country_display"]
+      .to_dict()
+)
 
 # -------------------------------
 # Initialise session state
@@ -444,7 +481,7 @@ else:
     col_chat = None
 
 with col_main:
-    tab1, tab2 = st.tabs(["Map & Charts", "Indicators"])
+    tab1, tab2, tab3 = st.tabs(["Map & Charts", "Indicators", "Trade Policies"])
 
 # -------------------------------
 # Preparation for Indicators Tab
@@ -480,27 +517,53 @@ if risk_col == "custom_risk_index":
                 score = df[col]
 
             df["custom_risk_index"] += score
-
-        max=df["custom_risk_index"].max()
-        min=df["custom_risk_index"].min()
-        df["custom_risk_index"]= 100*( (df["custom_risk_index"] -min)/ (max-min)  )   
+   
+        ci_max = df["custom_risk_index"].max()
+        ci_min = df["custom_risk_index"].min()
+        df["custom_risk_index"] = 100 * ((df["custom_risk_index"] - ci_min) / (ci_max - ci_min))
     
+def apply_policies(df, policies):
+    df_sim = df.copy()
 
+    for policy in policies:
+        condition = (
+            (df_sim["origin"] == policy["origin"]) &
+            (df_sim["country"] == policy["country"])
+        )
 
+        if policy["industry"] != "All":
+            condition &= (df_sim["industry"] == policy["industry"])
 
+        if policy["trade_multiplier"] != 1.0:
+            df_sim.loc[condition, "trade_value"] *= policy["trade_multiplier"]
+
+        if policy["risk_multiplier"] != 1.0:
+            df_sim.loc[condition, "risk_index"] *= policy["risk_multiplier"]
+
+        if policy["ae_adjustment"] != 0:
+            df_sim.loc[condition, "actual_vs_expected"] += policy["ae_adjustment"]
+
+    # recompute weights AFTER simulation
+    df_sim["total_export"] = df_sim.groupby(["origin", "country"])["exports_vol"].transform("sum")
+    df_sim["industry_weight"] = df_sim["exports_vol"] / df_sim["total_export"]
+
+    return df_sim
 # -------------------------------
 # Map & Charts Tab
 # -------------------------------
 with tab1:
     # Filters
-    col1, col2, col3, col4 = st.columns(4) 
+    col1, col2, col3 = st.columns(3) 
 
     # Add origin selector
     with col1:
+        origin_options = sorted(df["origin"].unique())
+        default_origin_idx = origin_options.index("Singapore") if "Singapore" in origin_options else 0
         origin = st.selectbox(
             "Origin Country",
-            sorted(df["origin"].unique())
-        )
+            origin_options,
+            index=default_origin_idx
+        )    
 
     # Region Searchbox
     regions = ["All"] + sorted(df["region"].unique()) # list of regions
@@ -516,7 +579,11 @@ with tab1:
         )
 
     # Country Multibox
-    countries = sorted(df["country"].unique()) # list of countries
+    countries = sorted(df["country_display"].unique())
+
+    # Row 2: Trading partners spanning same width as the 3 filters above
+    col4, colspacer = st.columns([3,1])
+
     # -------------------------------
     # Fixed-position legend/info over map
     # -------------------------------
@@ -550,129 +617,54 @@ with tab1:
         unsafe_allow_html=True
     )
 
-    
     # -------------------------------
-    # Policy simulation
+    # Apply policies (outside tabs so tab1 map always reflects active policies)
     # -------------------------------
-    col_map, col_panel = st.columns([3, 1])
-
-    with col_panel:
-        st.markdown('<div class="policy-panel">', unsafe_allow_html=True)
-        st.markdown("### Add Trade Policy")
-
-        if st.session_state.last_news_policy:
-            news_title = st.session_state.last_news_policy
-            short_title = news_title[:60] + "…" if len(news_title) > 60 else news_title
-            st.success(f"📰 Last added from news: *{short_title}*")
-            if st.button("Dismiss", key="dismiss_news_banner"):
-                st.session_state.last_news_policy = None
-                st.rerun()
-
-        policy_origin = st.selectbox("Origin", sorted(df["origin"].unique()), key="p1")
-        policy_country = st.selectbox("Partner Country", sorted(df["country"].unique()), key="p2")
-        policy_industry = st.selectbox("Industry", ["All"] + sorted(df["industry"].unique()), key="p3")
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            trade_mult = st.slider("Trade Multiplier", -5.0, 5.0, 0.0)
-
-        with col2:
-            risk_mult = st.slider("Risk Multiplier", -5.0, 5.0, 0.0)
-
-        with col3:
-            ae_adj = st.slider("AE Adjustment", -20, 20, 0)
-
-        if st.button("Launch New Policy"):
-            st.session_state.policies.append({
-                "origin": policy_origin,
-                "country": policy_country,
-                "industry": policy_industry,
-                "trade_multiplier": trade_mult,
-                "risk_multiplier": risk_mult,
-                "ae_adjustment": ae_adj
-            })
-
-        st.markdown("### Active Policies")
-
-        for i, p in enumerate(st.session_state.policies):
-            news_tag = " 📰" if p.get("from_news") else ""
-            st.write(
-                f"{i+1}. {p['origin']} → {p['country']} | {p['industry']} | "
-                f"Trade x{p['trade_multiplier']}, Risk x{p['risk_multiplier']}{news_tag}"
-            )
-
-        if st.button("Clear All Policies"):
-            st.session_state.policies = []
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # -------------------------------
-    # Apply policies
-    # -------------------------------
-    df_sim = df.copy()
-
-    for policy in st.session_state.policies:
-
-        condition = (
-            (df_sim["origin"] == policy["origin"]) &
-            (df_sim["country"] == policy["country"])
-        )
-
-        if policy["industry"] != "All":
-            condition &= (df_sim["industry"] == policy["industry"])
-
-        df_sim.loc[condition, "trade_value"] *= policy["trade_multiplier"]
-        df_sim.loc[condition, "risk_index"] *= policy["risk_multiplier"]
-        df_sim.loc[condition, "actual_vs_expected"] += policy["ae_adjustment"]
-
+    df_sim = apply_policies(df, st.session_state.policies)
 
     #--------------------------------
     # Multiselect trading partners
     #--------------------------------
-
-
     #funtion to find list of countries in region
     def filter_region(x):
         condition=df['region']==x
         a=df[condition]
-        return sorted(a['country'].unique())
+        return sorted(a['country_display'].unique())
     
     #Reducing the number of countries that can be selected by region
-    Clist= countries
+    Clist= sorted(df["country_display"].unique())
     
     if region != "All":
             Clist= filter_region(region)
 
     #function to find top5 countries for default
     def find_5(data):
-        return (
-            data.groupby("country")[risk_col]
-            .sum()
-            .sort_values(ascending=True)
-            .head(5)
-            .index
+        scores = data.groupby("country").apply(
+            lambda x: (x[risk_col] * x["industry_weight"]).sum()
         )
+        return scores.sort_values(ascending=True).head(5).index
     
     #Getting list of top 5 countires for multiselect default
-    default_list=countries
-    df_default=df_sim[df_sim["origin"] == origin].copy()
-    if region !="All":
-        df_region=df_default[df_default["region"]==region].copy()
-        top5_countries =  find_5(df_region)
-        default_list=top5_countries
+    df_default = df_sim[df_sim["origin"] == origin].copy()
+
+    if region != "All":
+        df_region = df_default[df_default["region"] == region].copy()
+        top5_countries = find_5(df_region)
+        base_df = df_region
     else:
         top5_countries = find_5(df_default)
-        default_list=top5_countries
+        base_df = df_default
+
+    # Convert to display names
+    default_list = (
+        base_df[base_df["country"].isin(top5_countries)]
+        .drop_duplicates("country")["country_display"]
+        .tolist()
+    )
 
     with col4:
+        selected_countries= st.multiselect("Trading Partners",Clist,default=default_list)
         
-        country= st.multiselect("Trading Partners",Clist,default=default_list)
-
-    
-
-
-
     # -------------------------------
     # Filtering results
     # -------------------------------
@@ -685,16 +677,20 @@ with tab1:
         filtered = filtered[filtered["region"] == region]
 
 
-    if country != []:
-        filtered=filtered[filtered["country"].isin(country)]
+    if selected_countries != []:
+        filtered=filtered[filtered["country_display"].isin(selected_countries)]
 
     else: # if no country selected, show top 5 countries by risk index
-        top5_countries = (
-            filtered.groupby("country")[risk_col]
-            .sum()
+        top5_scores = filtered.groupby("country").apply(
+            lambda x: (x[risk_col] * x["industry_weight"]).sum()
+        )
+
+        top5 = (
+            top5_scores
             .sort_values(ascending=True)
             .head(5)
             .index
+            .tolist()
         )
         filtered = filtered[filtered["country"].isin(top5_countries)]
 
@@ -715,9 +711,9 @@ with tab1:
     )
     
     country_scores = (
-        df_filtered.groupby("country")[risk_col]
-        .mean()
-        .to_dict()
+        df_filtered.groupby("country").apply(
+            lambda x: (x[risk_col] * x["industry_weight"]).sum()
+        ).to_dict()
     )
 
     # imports/exports over gdp
@@ -751,31 +747,6 @@ with tab1:
         max_width = 30
         return min_width + (max_width - min_width) * trade_factor
 
-
-    # -------------------------------
-    # Helper: ISO2
-    # -------------------------------
-    def get_iso2(country_name):
-        # because pycountry names it differently from Nat Geo
-        special_cases = {
-            "United States of America": "US",
-            "United Arab Emirates": "AE",
-            "Russia": "RU",
-            "Turkey": "TR"
-        }
-        
-        if country_name in special_cases:
-            return special_cases[country_name]
-        
-        try:
-            return pycountry.countries.get(name=country_name).alpha_2
-        except:
-            try:
-                return pycountry.countries.get(common_name=country_name).alpha_2
-            except:
-                return "UN"
-
-
     # -------------------------------
     # Colours
     # -------------------------------
@@ -791,221 +762,271 @@ with tab1:
     # -------------------------------
     # Map
     # -------------------------------
-    with col_map:
-        st.markdown("### Global Trade Network")
+    st.markdown("### Global Trade Network")
         
-        # Origin coordinates
-        ORIGIN_COORDS = {
-            "Singapore": (1.3521, 103.8198),
-            "USA": (37.09, -95.71),
-            "China": (35.86, 104.19),
-            "Japan": (36,138),
-            "Germany": (51,9)
-        }
+    # Origin coordinates
+    ORIGIN_COORDS = {
+        "Singapore": (1.3521, 103.8198),
+        "USA": (37.09, -95.71),
+        "China": (35.86, 104.19),
+        "Japan": (36,138),
+        "Germany": (51,9)
+    }
 
-        origin_coords = ORIGIN_COORDS[origin]
+    origin_coords = ORIGIN_COORDS[origin]
 
-        m = folium.Map(
-            location=[20, 0],
-            zoom_start=2,
-            tiles="CartoDB Voyager"
-        )
+    m = folium.Map(
+        location=[20, 0],
+        zoom_start=2,
+        tiles="CartoDB Voyager"
+    )
 
-        comparison_data = []
+    comparison_data = []
 
-        # -------------------------------
-        # Markers + arrows (TOP 5)
-        # -------------------------------
-        for rank, country in enumerate(top5, start=1):
+    # -------------------------------
+    # Markers + arrows (TOP 5)
+    # -------------------------------
+    
+    for rank, country in enumerate(top5, start=1):
+        country_data = df_filtered[df_filtered["country"] == country]
+        if country_data.empty:
+            continue
 
-            country_data = df_filtered[df_filtered["country"] == country]
-            if country_data.empty:
-                continue
+        row = country_data.iloc[0]
+        display_country = row["country_display"]
+        endLA = row["latitude"]
+        endLO = row["longitude"]
 
-            row = country_data.iloc[0]
-            endLA = row["latitude"]
-            endLO = row["longitude"]
-
-            # Weighted AE
-            total_weight = country_data["industry_weight"].sum()
-            if total_weight > 0:
-                weighted_ae = (
-                    (country_data["actual_vs_expected"] * country_data["industry_weight"]).sum()
-                    / total_weight
-                )
-            else:
-                weighted_ae = 0
-
-            color = get_color(country_scores[country])
-
-            imports_vol = country_totals[country]['imports_pct']
-            exports_vol = country_totals[country]['exports_pct']
-            arrow_factor = country_totals[country]['arrow_width_factor']
-
-            width = get_arrow_width(arrow_factor)
-
-            flag_url = f"https://flagcdn.com/w40/{get_iso2(country).lower()}.png"
-
-            # Industry info section for popup
-            if selected_industry == "All":
-                country_industry_vols = (
-                    df_filtered[df_filtered["country"] == country]
-                    .groupby("industry")["trade_value"].sum()
-                    .sort_values(ascending=False)
-                    .head(3)
-                )
-                top3_rows = "".join([
-                    f"<div style='margin-left:8px;'>• {ind}: {vol:,.0f}</div>"
-                    for ind, vol in country_industry_vols.items()
-                ])
-                industry_html = f"<div style='margin-top:4px;'><b>Top 3 Industries:</b></div>{top3_rows}"
-            else:
-                all_industry_vols = (
-                    df_sim[(df_sim["origin"] == origin) & (df_sim["country"] == country)]
-                    .groupby("industry")["trade_value"].sum()
-                    .sort_values(ascending=False)
-                )
-                if selected_industry in all_industry_vols.index:
-                    ind_vol = all_industry_vols[selected_industry]
-                    industry_html = f"<div style='margin-top:4px;'><b>{selected_industry}</b>: {ind_vol:,.0f}</div>"
-                else:
-                    industry_html = f"<div style='margin-top:4px;'><b>{selected_industry}</b>: N/A</div>"
-
-            popup_html = f"""
-            <div style="font-family: Arial; font-size: 12px; padding: 8px;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <img src="{flag_url}" style="width:24px;">
-                    <span style="font-size:14px; font-weight:600;">{country}</span>
-                </div>
-
-                <hr style="margin:6px 0;">
-
-                <div>Rank: <b>#{rank}</b></div>
-                <div>Risk Index: <b>{row[risk_col]:.2f}</b></div>
-                <div>Actual vs Expected: <b>{weighted_ae:.0f}%</b></div>
-
-                <div><b>Imports</b>: {imports_vol:.2f}%</div>
-                <div><b>Exports</b>: {exports_vol:.2f}%</div>
-                {industry_html}
-            </div>
-            """
-
-            tooltip = Tooltip(
-                f"<b>{country}</b>",
-                sticky=True,
-                style="font-size:11px;background-color:rgba(0,0,0,0.75);color:white;padding:6px;"
+        # Weighted AE
+        total_weight = country_data["industry_weight"].sum()
+        if total_weight > 0:
+            weighted_ae = (
+                (country_data["actual_vs_expected"] * country_data["industry_weight"]).sum()
+                / total_weight
             )
+        else:
+            weighted_ae = 0
 
-            folium.Marker(
-                [endLA, endLO],
-                icon=DivIcon(
-                    html=f"""
-                    <div style="background:{color};color:white;border-radius:50%;
-                                width:30px;height:30px;text-align:center;line-height:30px;">
-                        {rank}
-                    </div>
-                    """
-                ),
-                popup=folium.Popup(popup_html, max_width=300),
-                tooltip=tooltip
-            ).add_to(m)
+        color = get_color(country_scores[country])
 
-            AntPath(
-                [origin_coords, (endLA, endLO)],
-                color=color,
-                weight=width,
-                tooltip=country
-            ).add_to(m)
+        imports_vol = country_totals[country]['imports_pct']
+        exports_vol = country_totals[country]['exports_pct']
+        arrow_factor = country_totals[country]['arrow_width_factor']
 
-            comparison_data.append({
-                "Rank": rank,
-                "Country": country,
-                "Risk Index": row[risk_col],
-                "Actual vs Expected": weighted_ae,
-                "Imports %": imports_vol,
-                "Exports %": exports_vol,
-                "industry_html": industry_html
-            })
+        width = get_arrow_width(arrow_factor)
+          
+        # flag_url
+        iso3 = row["partner_iso"]
+        try:
+            iso2 = pycountry.countries.get(alpha_3=iso3).alpha_2
+            flag_url = f"https://flagcdn.com/w40/{iso2.lower()}.png"
+        except:
+            flag_url = ""
 
-        # -------------------------------
-        # GeoJSON
-        # -------------------------------
-        geojson_path = BASE_DIR / "world_countries.json"
-
-        with open(geojson_path, encoding="utf-8") as f:
-            geojson = json.load(f)
-
-        def style_function(feature):
-            if feature['properties']['name'] in top5:
-                return {
-                    'fillColor': "#858AEE",
-                    'color': "#7A68C2",
-                    'weight': 1,
-                    'fillOpacity': 0.4
-                }
+        # Industry info section for popup
+        if selected_industry == "All":
+            country_industry_vols = (
+                df_filtered[df_filtered["country"] == country]
+                .groupby("industry")["trade_value"].sum()
+                .sort_values(ascending=False)
+                .head(3)
+            )
+            top3_rows = "".join([
+                f"<div style='margin-left:8px;'>• {ind}: {vol:,.0f}</div>"
+                for ind, vol in country_industry_vols.items()
+            ])
+            industry_html = f"<div style='margin-top:4px;'><b>Top 3 Industries:</b></div>{top3_rows}"
+        else:
+            all_industry_vols = (
+                df_sim[(df_sim["origin"] == origin) & (df_sim["country"] == country)]
+                .groupby("industry")["trade_value"].sum()
+                .sort_values(ascending=False)
+            )
+            if selected_industry in all_industry_vols.index:
+                ind_vol = all_industry_vols[selected_industry]
+                industry_html = f"<div style='margin-top:4px;'><b>{selected_industry}</b>: {ind_vol:,.0f}</div>"
             else:
-                return {
-                    'fillColor': 'white',
-                    'color': 'gray',
-                    'weight': 0.5,
-                    'fillOpacity': 0.1
-                } 
+                industry_html = f"<div style='margin-top:4px;'><b>{selected_industry}</b>: N/A</div>"
 
-        highlight_function = lambda x: {
-            "fillColor": "lightblue",
-            "weight": 2,
-            "fillOpacity": 0.5,
-        }
+        popup_html = f"""
+        <div style="font-family: Arial; font-size: 12px; padding: 8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <img src="{flag_url}" style="width:24px;">
+                <span style="font-size:14px; font-weight:600;">{display_country}</span>
+            </div>
+            
+            <hr style="margin:6px 0;">
 
-        tooltip_geo = GeoJsonTooltip(
-            fields=["name"],
-            aliases=[""],
-            localize=True,
+            <div>Rank: <b>#{rank}</b></div>
+            <div>Risk Index: <b>{row[risk_col]:.2f}</b></div>
+            <div>Actual vs Expected: <b>{weighted_ae:.0f}%</b></div>
+
+            <div><b>Imports</b>: {imports_vol:.2f}%</div>
+            <div><b>Exports</b>: {exports_vol:.2f}%</div>
+            {industry_html}
+        </div>
+        """
+
+        tooltip = Tooltip(
+            f"<b>{display_country}</b>",
             sticky=True,
-            labels=True,
-            style="""
-                font-size: 11px;
-                background-color: white;
-                border: 1px solid black;
-                border-radius: 3px;
-                text-align:center;
-            """,
-            max_width=200
-        )
-
-        folium.GeoJson(
-            geojson,
-            style_function=style_function,
-            highlight_function=highlight_function,
-            tooltip=tooltip_geo
-        ).add_to(m)
-
-
-        # -------------------------------
-        # Origin marker
-        # -------------------------------
-        origin_iso = get_iso2(origin).lower()
-        origin_flag_url = f"https://flagcdn.com/w40/{origin_iso}.png"
+            style="font-size:11px;background-color:rgba(0,0,0,0.75);color:white;padding:6px;"
+         )
 
         folium.Marker(
-            origin_coords,
-            icon=folium.Icon(color="red"),
-            tooltip=Tooltip(f"<b>{origin} (Origin)</b>"),
-            popup=folium.Popup(
-                f"""
-                <div>
-                    <img src="{origin_flag_url}" style="width:24px;">
-                    <b>{origin} (Origin)</b>
+            [endLA, endLO],
+            icon=DivIcon(
+                html=f"""
+                <div style="background:{color};color:white;border-radius:50%;
+                            width:30px;height:30px;text-align:center;line-height:30px;">
+                    {rank}
                 </div>
-                """,
-                max_width=250
-            )
+                """
+            ),
+            popup=folium.Popup(popup_html, max_width=300),
+            tooltip=tooltip
         ).add_to(m)
 
-        # -------------------------------
-        # Render map
-        # -------------------------------
-        st_folium(m, use_container_width=True, height=550)
+        AntPath(
+            [origin_coords, (endLA, endLO)],
+            color=color,
+            weight=width,
+            tooltip=display_country
+        ).add_to(m)
+
+        comparison_data.append({
+            "Rank": rank,
+            "Country": row["country_display"],
+            "ISO3": row["partner_iso"],
+            "Risk Index": row[risk_col],
+            "Actual vs Expected": weighted_ae,
+            "Imports %": imports_vol,
+            "Exports %": exports_vol,
+            "industry_html": industry_html
+        })
+
+    # -------------------------------
+    # GeoJSON
+    # -------------------------------
+    geojson_path = BASE_DIR / "world_countries.json"
+
+    with open(geojson_path, encoding="utf-8") as f:
+        geojson = json.load(f)
+
+    # Countries where GeoJSON uses -99 instead of proper ISO3
+    # Keys must match the GeoJSON "name" field exactly
+    GEOJSON_ISO_OVERRIDES = {
+        "France":                              "FRA",
+        "Norway":                              "NOR",
+        "Dominica":                            "DMA",
+        "Seychelles":                          "SYC",
+        "Saint Kitts and Nevis":               "KNA",
+        "Bahrain":                             "BHR",
+        "Saint Lucia":                         "LCA",
+        "Grenada":                             "GRD",
+        "Saint Vincent and the Grenadines":    "VCT",
+        "Malta":                               "MLT",
+        "Mauritius":                           "MUS",
+        }
+                    
+    # Build ISO list for top5
+    top5_iso3 = (
+        df_filtered[df_filtered["country"].isin(top5)]
+        .drop_duplicates("country")["partner_iso"]
+        .tolist()
+    )
+
+    # Add fall back matching by country name
+    name_to_iso3 = df.drop_duplicates("country").set_index("country")["partner_iso"].to_dict()
+    # Also add display names
+    display_to_iso3 = df.drop_duplicates("country_display").set_index("country_display")["partner_iso"].to_dict()
+    name_to_iso3.update(display_to_iso3)
+
+    def style_function(feature):
+        iso = feature['properties'].get('iso_a3')
+        name = feature["properties"].get("name", "")
+           
+        # Use override if available, else use GeoJSON iso, else fallback to name lookup
+        corrected_iso = GEOJSON_ISO_OVERRIDES.get(name, iso)
+        matched = (
+            corrected_iso in top5_iso3
+            or name_to_iso3.get(name) in top5_iso3
+        )
+
+        if matched:
+            return {
+                'fillColor': "#858AEE",
+                'color': "#7A68C2",
+                'weight': 1,
+                'fillOpacity': 0.4
+            }
+        else:
+            return {
+                'fillColor': 'white',
+                'color': 'gray',
+                'weight': 0.5,
+                'fillOpacity': 0.1
+            }
+
+    highlight_function = lambda x: {
+        "fillColor": "lightblue",
+        "weight": 2,
+        "fillOpacity": 0.5,
+    }
+
+    tooltip_geo = GeoJsonTooltip(
+        fields=["name"],
+        aliases=[""],
+        localize=True,
+        sticky=True,
+        labels=True,
+        style="""
+            font-size: 11px;
+            background-color: white;
+            border: 1px solid black;
+            border-radius: 3px;
+            text-align:center;
+        """,
+        max_width=200
+    )
+
+    folium.GeoJson(
+        geojson,
+        style_function=style_function,
+        highlight_function=highlight_function,
+        tooltip=tooltip_geo
+    ).add_to(m)
+
+
+    # -------------------------------
+    # Origin marker
+    # -------------------------------
+    # origin_iso and origin_flag_url
+    try:
+        origin_iso2 = pycountry.countries.get(alpha_3=df[df["origin"] == origin]["origin_iso"].iloc[0]).alpha_2
+        origin_flag_url = f"https://flagcdn.com/w40/{origin_iso2.lower()}.png"
+    except:
+        origin_flag_url = ""
+
+    folium.Marker(
+        origin_coords,
+        icon=folium.Icon(color="red"),
+        tooltip=Tooltip(f"<b>{origin} (Origin)</b>"),
+        popup=folium.Popup(
+            f"""
+            <div>
+                <img src="{origin_flag_url}" style="width:24px;">
+                <b>{origin} (Origin)</b>
+            </div>
+            """,
+            max_width=250
+        )
+    ).add_to(m)
+
+    # -------------------------------
+    # Render map
+    # -------------------------------
+    st_folium(m, use_container_width=True, height=550)
 
     # Create comparison cards
     df_compare = pd.DataFrame(comparison_data)
@@ -1015,7 +1036,12 @@ with tab1:
 
     for i, data in enumerate(comparison_data):
         with cols[i]:
-            flag_url = f"https://flagcdn.com/w40/{get_iso2(data['Country']).lower()}.png"
+            # flag_url
+            try:
+                iso2 = pycountry.countries.get(alpha_3=data["ISO3"]).alpha_2
+                flag_url = f"https://flagcdn.com/w40/{iso2.lower()}.png"
+            except:
+                flag_url = ""
             risk_score = data['Risk Index']
             text_color = get_color(risk_score)
             st.markdown(f"""
@@ -1048,105 +1074,170 @@ with tab1:
     with st.expander("", expanded=True):        
         st.markdown("### Trade Insights")
         st.markdown(
-            '<div class="subtitle">Comparison of partner strength and sector activity</div>',
+            '<div class="subtitle"> Scatter Plot of risk vs. trade volume by partner country — points in the green quadrant signal untapped low-risk opportunities, red quadrant warrants caution</div>',
             unsafe_allow_html=True
         )
 
-        col1, col2 = st.columns(2)
+        # -------------------------------
+        # Scatter Plot: Risk vs Trade Volume
+        # -------------------------------
 
-        # Chart 1
-        with col1:
-            chart_data = (
-            filtered.groupby("country")
+        # Use df_sim (policy-applied) and map display names back for labeling
+        scatter_base = df_sim[df_sim["origin"] == origin].copy()
+
+        # Apply filters
+        if region != "All":
+            scatter_base = scatter_base[scatter_base["region"] == region]
+        if selected_industry != "All":
+            scatter_base = scatter_base[scatter_base["industry"] == selected_industry]
+        if selected_countries:
+            scatter_base = scatter_base[scatter_base["country_display"].isin(selected_countries)]
+
+        # Aggregate by country (raw name), then attach display name
+        scatter_df = (
+            scatter_base.groupby("country")
             .agg(
                 risk_value=(risk_col, "mean"),
                 trade_value=("trade_value", "sum"),
             )
             .reset_index()
         )
-    
-        # checking for filters
-            if country != []:
-                chart_countries = chart_data
-                least_risk_country = country
-            else:
-                top5 = (
-                    chart_data.nlargest(5, "risk_value")["country"].tolist()
-                )
-                chart_countries = chart_data[chart_data["country"].isin(top5)]
-                least_risk_country = chart_countries.sort_values("risk_value", ascending=True).iloc[0]["country"]
-            
-            chart_countries = chart_countries.sort_values("risk_value", ascending=True)
-            chart_sorted = chart_countries.copy()
-            chart_sorted["risk_display"] = (chart_countries["risk_value"]).round(0).astype(int)
-            
-    
-            
-            chart_sorted = chart_sorted.sort_values('risk_display')
-            chart_sorted['colour'] = chart_sorted['risk_display'].apply(get_color)
 
-            fig1 = px.bar(
-                chart_sorted.sort_values('risk_display', ascending=False),
-                x='risk_display',
-                y='country',
-                orientation='h',
-                text='risk_display',
-                labels={
-                    'risk_display': 'Risk Index',
-                    'country': 'Country'
-                },
-                color='colour',
-                color_discrete_map='identity',
+        # Attach display names for labels
+        display_map = df_sim.drop_duplicates("country").set_index("country")["country_display"]
+        scatter_df["display_name"] = scatter_df["country"].map(display_map).fillna(scatter_df["country"])
+
+        # -------------------------------
+        # Reference mean: same region & industry as current selection
+        # (uses full df, not just selected countries)
+        # -------------------------------
+        reference_df = df_sim[df_sim["origin"] == origin].copy()
+        if region != "All":
+            reference_df = reference_df[reference_df["region"] == region]
+        if selected_industry != "All":
+            reference_df = reference_df[reference_df["industry"] == selected_industry]
+
+        reference_agg = (
+            reference_df.groupby("country")
+            .agg(
+                risk_value=(risk_col, "mean"),
+                trade_value=("trade_value", "sum"),
             )
+        )
 
-            fig1.update_traces(textposition="outside", textfont_size=10)
-            fig1.update_layout(
-                template="plotly_white",
-                font=dict(size=12),
-                margin=dict(l=10, r=10, t=20, b=10),
-                showlegend=False,
-                height = 300
-            )
+        x_mean = reference_agg["trade_value"].mean()
+        y_mean = reference_agg["risk_value"].mean()
 
-            st.plotly_chart(fig1, use_container_width=True)
+        # -------------------------------
+        # Axis ranges: centre the intersection
+        # -------------------------------
+        x_min = scatter_df["trade_value"].min()
+        x_max = scatter_df["trade_value"].max()
+        y_min = scatter_df["risk_value"].min()
+        y_max = scatter_df["risk_value"].max()
 
-        # Chart 2
-        with col2:
-            fig2 = px.bar(
-                chart_sorted.sort_values('trade_value', ascending=True),
-                x='trade_value',
-                y='country',
-                orientation='h',
-                text='trade_value',
-                labels={
-                    'trade_value': f'{selected_industry} Trade Volume (kg/month)',
-                    'country': 'Country'
-                }
-            )
+        x_pad = (x_max - x_min) * 0.15
+        y_pad = (y_max - y_min) * 0.15
 
-            fig2.update_traces(texttemplate='%{text:.0f}', textposition="outside", textfont_size=10)
-            fig2.update_layout(
-                template="plotly_white",
-                font=dict(size=12),
-                margin=dict(l=10, r=10, t=20, b=10),
-                showlegend=False,
-                height = 300
-            )
+        # Distance from mean to each edge, take the larger so mean lands in the centre
+        x_half = max(x_mean - x_min, x_max - x_mean) + x_pad
+        y_half = max(y_mean - y_min, y_max - y_mean) + y_pad
 
-            st.plotly_chart(fig2, use_container_width=True)
+        x_range = [x_mean - x_half, x_mean + x_half]
+        y_range = [y_mean - y_half, y_mean + y_half]
+
+        # Plot
+        industry_label = "All Industries" if selected_industry == "All" else selected_industry
+        region_label = "All Regions" if region == "All" else region
+        x_label = f"Trade Volume — {region_label} | {industry_label}"
+        fig = px.scatter(
+            scatter_df,
+            x="trade_value",
+            y="risk_value",
+            text="display_name",
+            labels={
+                "trade_value": x_label,
+                "risk_value": "Risk Index"
+            }
+        )
+        
+        # -------------------------------
+        # Quadrant shading (added before traces so points render on top)
+        # -------------------------------
+        # Bottom-left: low trade vol, low risk → green (opportunity)
+        fig.add_shape(type="rect",
+            x0=x_range[0], x1=x_mean,
+            y0=y_range[0], y1=y_mean,
+            fillcolor="rgba(39, 174, 96, 0.12)",
+            line_width=0, layer="below"
+        )
+        # Top-right: high trade vol, high risk → red (caution)
+        fig.add_shape(type="rect",
+            x0=x_mean, x1=x_range[1],
+            y0=y_mean, y1=y_range[1],
+            fillcolor="rgba(231, 76, 60, 0.12)",
+            line_width=0, layer="below"
+        )
+
+        # Quadrant labels
+        fig.add_annotation(x=x_range[0], y=y_range[0], text="🟢 Opportunity",
+            showarrow=False, xanchor="left", yanchor="bottom",
+            font=dict(size=11, color="rgba(39,174,96,0.8)"))
+        fig.add_annotation(x=x_range[1], y=y_range[1], text="🔴 Caution",
+            showarrow=False, xanchor="right", yanchor="top",
+            font=dict(size=11, color="rgba(231,76,60,0.8)"))
+        
+
+        fig.add_vline(x=x_mean, line_dash="dash", line_color="gray", 
+                      annotation_text="Region and Industry average", annotation_position="top right")
+        fig.add_hline(y=y_mean, line_dash="dash", line_color="gray", 
+                      annotation_text="Region and Industry average", annotation_position="top right")
+
+        fig.update_traces(textposition="top center", marker=dict(size=9))
+        fig.update_layout(template="plotly_white", height=500, showlegend=False, xaxis=dict(range=x_range), yaxis=dict(range=y_range))
+
+        st.plotly_chart(fig, use_container_width=True)
+
 
         # -------------------------------
         # Interpretation
         # -------------------------------
-        st.markdown("### Interpretation")
-        most_compat_country = chart_sorted.iloc[0]["country"]
+        if scatter_df.empty: # no data for filtering
+            st.info("No data for selected filters. Adjust your filters to see trade insights.")
+        else:
+        
+            # Classify each country into quadrants
+            opportunity = scatter_df[(scatter_df["trade_value"] < x_mean) & (scatter_df["risk_value"] < y_mean)]
+            caution = scatter_df[(scatter_df["trade_value"] >= x_mean) & (scatter_df["risk_value"] >= y_mean)]
+    
+            best_opportunity = (
+                opportunity.sort_values("risk_value").iloc[0]["display_name"]
+                if not opportunity.empty else None
+             )
+    
+            industry_str = "across all industries" if selected_industry == "All" else f"in {selected_industry}"
+            region_str   = "globally" if region == "All" else f"in {region}"
 
-        st.info(
-            f"{most_compat_country} emerges as the strongest partner amongst countries in {region} region based on risk index. "
-            f"The selected industry ({selected_industry}) shows varying trade intensity across countries, "
-            "highlighting potential specialization opportunities."
-        )
+            lines = []
 
+            if best_opportunity:
+                lines.append(
+                    f"**{best_opportunity}** stands out as the top untapped opportunity — "
+                    f"low risk and below-average trade volume {industry_str} {region_str}, "
+                    f"suggesting room to grow the relationship."
+                )
+            
+            if not caution.empty:
+                caution_names = ", ".join(f"**{n}**" for n in caution["display_name"].tolist())
+                lines.append(
+                    f"{caution_names} "
+                    f"{'falls' if len(caution) == 1 else 'fall'} in the caution zone — "
+                    f"high trade volume paired with elevated risk warrants closer monitoring."
+                )
+    
+            if lines:
+                st.info("  \n".join(lines))
+ 
 # -------------------------------
 # Indicators Tab
 # -------------------------------
@@ -1170,6 +1261,116 @@ with tab2:
             st.session_state.risk_index = "custom_risk_index"
             st.success("Custom Risk Index Generated! Check the Map & Charts tab.")
 
+# -------------------------------
+# Trade Policy Tab
+# -------------------------------
+DEFAULT_TRADE = 1.0
+DEFAULT_RISK  = 1.0
+DEFAULT_AE    = 0.0
+
+if "trade_mult" not in st.session_state:
+    st.session_state["trade_mult"] = DEFAULT_TRADE
+
+if "risk_mult" not in st.session_state:
+    st.session_state["risk_mult"] = DEFAULT_RISK
+
+if "ae_adj" not in st.session_state:
+    st.session_state["ae_adj"] = DEFAULT_AE
+
+with tab3:
+    
+    st.markdown("### Trade Policy Simulation")
+    st.write("Simulate the effect of trade policies on risk index, trade volume, and actual vs expected trade. Policies applied here will update the Map & Charts tab.")
+
+    if st.session_state.last_news_policy:
+        news_title = st.session_state.last_news_policy
+        short_title = news_title[:60] + "…" if len(news_title) > 60 else news_title
+        st.success(f"📰 Last added from news: *{short_title}*")
+        if st.button("Dismiss", key="dismiss_news_banner"):
+            st.session_state.last_news_policy = None
+            st.rerun()
+
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        st.markdown("#### Add New Policy")
+        policy_origin = st.selectbox("Origin", origin_options, key="origin")
+        policy_country_display  = st.selectbox("Partner Country", sorted(df["country_display"].unique()), key="policy_country")
+        # Convert back to actual country name
+        policy_country = display_to_country[policy_country_display]
+        policy_industry = st.selectbox("Industry", ["All"] + sorted(df["industry"].unique()), key="policy_industry")
+
+        if "last_origin" not in st.session_state:
+            st.session_state.last_origin = policy_origin
+
+        if policy_origin != st.session_state.last_origin:
+            st.session_state.trade_mult = 1.0
+            st.session_state.risk_mult  = 1.0
+            st.session_state.ae_adj     = 0.0
+
+            st.session_state.last_origin = policy_origin
+
+        sl1, sl2, sl3 = st.columns(3)
+        with sl1:
+            trade_mult = st.slider("Trade Multiplier", 0.1, 5.0, step=0.1, key="trade_mult")
+        with sl2:
+            risk_mult  = st.slider("Risk Multiplier",  0.1, 5.0, step=0.1, key="risk_mult")
+        with sl3:
+            ae_adj     = st.slider("AE Adjustment",   -20.0,   20.0, step=0.5, key="ae_adj")
+
+        
+        
+        if st.button("Launch New Policy", use_container_width=True):
+            st.session_state.policies.append({
+                "origin": policy_origin,
+                "country": policy_country,
+                "industry": policy_industry,
+                "trade_multiplier": trade_mult,
+                "risk_multiplier": risk_mult,
+                "ae_adjustment": ae_adj,
+            })
+            st.success(
+                f"✅ {len(st.session_state.policies)} "
+                f"{'policy' if len(st.session_state.policies) == 1 else 'policies'} currently active — "
+                "refer to the **Map & Charts** tab to view the changes."
+            )
+
+    with col_b:
+        n_policies = len(st.session_state.policies)
+        st.markdown(f"#### {n_policies} Active Policies")
+        
+        if not st.session_state.policies:
+            st.info("No active policies yet.")
+        else:
+            for i, p in enumerate(st.session_state.policies):
+                display_country = country_to_display.get(p["country"], p["country"])
+                news_tag = " 📰" if p.get("from_news") else ""
+
+                col1, col2 = st.columns([5, 1])
+
+                with col1:
+                    st.markdown(f"""
+                    <div style="padding:10px; margin-bottom:8px; border-radius:8px;
+                                border:1px solid rgba(128,128,128,0.3);
+                                background-color:var(--secondary-background-color);">
+                        <b>{p['origin']}</b> → <b>{display_country}</b> | {p['industry']}{news_tag}<br>
+                        <span style="font-size:12px; color:gray;">
+                            Trade ×{p['trade_multiplier']} &nbsp;|&nbsp;
+                            Risk ×{p['risk_multiplier']} &nbsp;|&nbsp;
+                            AE {'+' if p['ae_adjustment'] >= 0 else ''}{p['ae_adjustment']}
+                        </span>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                with col2:
+                    if st.button("❌", key=f"delete_policy_{i}"):
+                        st.session_state.policies.pop(i)
+                        st.rerun()
+
+        if st.button("Clear All Policies", use_container_width=True):
+            st.session_state.policies = []
+            st.rerun()
+    
 # -------------------------------
 # Chat Panel (right column, visible when show_chat=True)
 # -------------------------------
@@ -1309,3 +1510,5 @@ with st.sidebar:
                     st.rerun()
 
             st.markdown('<hr style="margin:6px 0; opacity:0.2;">', unsafe_allow_html=True)
+
+
