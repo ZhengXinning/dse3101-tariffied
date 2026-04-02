@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 #file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
 
 load_dotenv()
-client = anthropic.Anthropic(api_key=os.getenv("dse3101-key"))
+client = anthropic.Anthropic(api_key=os.getenv("DSE3101_KEY"))
 
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
@@ -205,7 +205,8 @@ def get_news():
 # -------------------------------
 #df = pd.read_csv(file_path, encoding='latin1', keep_default_na=False)
 
-df = pd.read_parquet(file_path)
+df = pd.read_parquet(file_path, engine = "fastparquet")
+
 df = df.rename(columns={
      "refYear": "year",
      "cmdCode": "industry_code",
