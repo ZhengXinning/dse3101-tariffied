@@ -208,7 +208,7 @@ def get_news():
 # -------------------------------
 #df = pd.read_csv(file_path, encoding='latin1', keep_default_na=False)
 
-df = pd.read_parquet(file_path, engine = "fastparquet")
+df = pd.read_parquet(file_path, engine = "fastparquet") # renaming columns
 df = df.rename(columns={
      "refYear": "year",
      "cmdCode": "industry_code",
@@ -238,12 +238,24 @@ df = df.rename(columns={
      "tradeRatio": "actual_vs_expected",
      "reporterTradePctGdp": "origin_trade_pct_gdp",
      "partnerTradePctGdp": "trade_pct_gdp",
-     "Risk_Index_Raw": "risk_index"
+     "Risk_Index_Raw": "risk_index_raw"
 })
 
-df=df[df["year"] ==2021]
-df=df[df["risk_index"]>0]
+
+#setting year for the data
+df=df[df["year"] ==2021] 
+#Normalising the risk
+risk_max= df["risk_index_raw"].max()
+risk_min= df["risk_index_raw"].min()
+df["risk_index"]=100* ((df["risk_index_raw"]- risk_min)/(risk_max-risk_min))
+
+#Only countries with risk_index are shown
+df=df[df["risk_index"]>=0]
+
+#Shortens description of industry without examples
 df["industry"]=df["industry"].str.split(';').str[0]
+
+#Created industry weights column which measures export volume over total export
 df["total_export"]=df.groupby(["origin","country"])["exports_vol"].transform("sum")
 df["industry_weight"]=df["exports_vol"]/df["total_export"]
 
