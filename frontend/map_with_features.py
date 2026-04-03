@@ -254,7 +254,6 @@ risk_max= df["risk_index_raw"].max()
 risk_min= df["risk_index_raw"].min()
 df["risk_index"]=100* ((df["risk_index_raw"]- risk_min)/(risk_max-risk_min))
 
-
 #Only countries with risk_index are shown
 df=df[df["risk_index"]>=0]
 
@@ -404,7 +403,6 @@ industry_mapping = {
     'Meat, fish, crustaceans, molluscs or other aquatic invertebrates, or insects; preparations thereof': 'Meat, Fish & Insect Preparations',
     'Tobacco and manufactured tobacco substitutes; products, whether or not containing nicotine, intended for inhalation without combustion; other nicotine containing products intended for the intake of nicotine into the human body': 'Tobacco & Nicotine Products',
 }
-
 df["industry"] = df["industry"].map(industry_mapping).fillna(df["industry"].str.split(';').str[0])
 
 # -------------------------------
