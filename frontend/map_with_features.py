@@ -249,8 +249,7 @@ risk_max= df["risk_index_raw"].max()
 risk_min= df["risk_index_raw"].min()
 df["risk_index"]=100* ((df["risk_index_raw"]- risk_min)/(risk_max-risk_min))
 
-#Only countries with risk_index are shown
-df=df[df["risk_index"]>=0]
+
 
 #Shortens description of industry without examples
 df["industry"]=df["industry"].str.split(';').str[0]
@@ -821,30 +820,36 @@ with tab2:
     # Helpers
     # -------------------------------
     # For UI
-    def get_country_list(df, selected_regions):
+    def get_country_list(df, selected_regions,origin):
+        df1=df[df["origin"]==origin]
         if "All" in selected_regions:
-            return sorted(df["country_display"].unique())
-        return sorted(df[df["region"].isin(selected_regions)]["country_display"].unique())
+            return sorted(df1["country_display"].unique())
+        return sorted(df1[df1["region"].isin(selected_regions)]["country_display"].unique())
     
     # Industry weighted score   
     # Avoid the apply() entirely and use a more stable aggregation
     def compute_scores(df, risk_col):
+        df_NA=df[df[risk_col].isna()]
+        final_NA=(df_NA[risk_col] * df_NA["industry_weight"]).groupby(df["country"]).sum().sort_values(ascending=True)
+        df_noNA=df.dropna(subset=risk_col)
+        final_noNA=(df_noNA[risk_col] * df_noNA["industry_weight"]).groupby(df["country"]).sum().sort_values(ascending=True)
+        combined=pd.concat([final_noNA,final_NA])
         return (
-            (df[risk_col] * df["industry_weight"])
-            .groupby(df["country"])
-            .sum()
-            .sort_values(ascending=True)
+            combined
+            
+            
             )
 
     # Ranking
     def get_top_n(df, risk_col, n=5):
+        
         return compute_scores(df, risk_col).head(n).index.tolist()
     
     # -------------------------------
     # Country list + defaults to display on Trading Partners filter
     # -------------------------------
     # controls only countries in user selected regions shows up for user to select
-    Clist = get_country_list(df, selected_regions)
+    Clist = get_country_list(df, selected_regions,origin)
 
     # ensure default is specific to user selected origin country
     # consistent with selected region
@@ -862,7 +867,7 @@ with tab2:
         .drop_duplicates("country")["country_display"]
         .tolist()
     )
-
+    print(top5_countries)
     # User sees a list of countries
     # Top 5 are pre-selected
     # User can override
