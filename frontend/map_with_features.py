@@ -987,12 +987,16 @@ with tab2:
         country_data = df_filtered[df_filtered["country"] == country]
         if country_data.empty:
             continue
-
+        
         row = country_data.iloc[0]
         display_country = row["country_display"]
         endLA = row["latitude"]
         endLO = row["longitude"]
-
+        message=""
+        if row[risk_col]>0:
+            message=""
+        else:
+            message="No risk data found"
         # Weighted AE
         total_weight = country_data["industry_weight"].sum()
         if total_weight > 0:
@@ -1066,6 +1070,7 @@ with tab2:
 
             <div>Rank: <b>#{rank}</b></div>
             <div>Risk Index: <b>{row[risk_col]:.2f}</b></div>
+            <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{message:.30s}</div>
             <div>Actual vs Expected: <b>{weighted_ae:.0f}%</b></div>
 
             <div><b>Imports</b>: {imports_vol:.2f}%</div>
@@ -1109,7 +1114,9 @@ with tab2:
             "Actual vs Expected": weighted_ae,
             "Imports %": imports_vol,
             "Exports %": exports_vol,
-            "industry_html": industry_html
+            "industry_html": industry_html,
+            "message" : message
+
         })
 
     # -------------------------------
@@ -1267,6 +1274,7 @@ with tab2:
                     </div>
                     <div style="color: gray; font-size:15px;margin-bottom: 5px;"> Rank: #{data['Rank']}</div>
                     <div style="margin-bottom: 3px;"> Risk Index: <span style="color:{text_color};"><b>{data['Risk Index']:.2f}</span></b></div>
+                    <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{data['message']:.30s}</div>
                     <div style="margin-bottom: 3px;"> Actual vs Expected: <b>{data['Actual vs Expected']:.0f}%</b></div>
                     <div style="margin-bottom: 3px;"> Imports: {data['Imports %']:.2f}%</div>
                     <div style="margin-bottom: 3px;">Exports: {data['Exports %']:.2f}%</div>
