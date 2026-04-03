@@ -492,6 +492,9 @@ else:
     col_main = st.container()
     col_chat = None
 
+# -------------------------------
+# Tab Creation
+# -------------------------------
 with col_main:
     tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Map & Charts", "Indicators", "Trade Policies"])
 
@@ -577,7 +580,6 @@ with tab1:
         This application is designed for government analysts and policymakers focused on international trade.
                     
         Assess the influence of geopolitical tensions on global trade by:
-        
         - Visualising bilateral trade flows
         - Identifying potential trade opportunities and risks
         - Simulating trade policies and scenarios
@@ -614,6 +616,10 @@ with tab1:
 
         </div>
         """, unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+
+        st.write("<i>Note: Currently, all data is based on figures in the latest available year with sufficient data for comprehensive trade analysis.<i>", unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -672,9 +678,9 @@ with tab1:
         st.markdown(info_card("Trade Policies",
         """
         - Simulate trade policies by adjusting sliders
-        - Trade multiplier: 
-        - Risk multiplier:
-        - Actual vs expected adjustment:
+        - **Trade multiplier:** Scales trade volume 
+        - **Risk multiplier:** Scales risk index 
+        - **Actual vs Expected adjustment:** Adds to the ratio
         """, "#C6A0FF"), unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
@@ -700,7 +706,7 @@ with tab1:
     This application presents three measures of trade volumes.
     
     - **Actual Trade Volume:** The observed total value (in USD) of real-world trade between countries.
-    - **Baseline Trade Volume:** The predicted trading volume between two countries based on the baseline gravity model using GDP per capita, population, geopolitical distance and import tariffs, excluding geopolitical distance.
+    - **Baseline Trade Volume:** The predicted trading volume between two countries based on the baseline gravity model using GDP per capita, population, geopolitical distance and export tariffs, excluding geopolitical distance.
     - **Expected Trade Volume:** The predicted trading volume between two countries based on the modified gravity model, including geopolitical distance along with the other determinants in the baseline model.
     """, unsafe_allow_html=True)
     
