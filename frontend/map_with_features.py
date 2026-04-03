@@ -1620,19 +1620,6 @@ if st.session_state.show_chat and col_chat is not None:
             unsafe_allow_html=True
         )
 
-        for i, prompt in enumerate([
-            "Which country do I have the lowest risk of trading with?",
-            "Which countries do I have untapped trade opportunities with?",
-            "Summarise my top 5 trading partners",
-            "How do my active policies affect my trade?",
-        ]):
-            if st.button(prompt, key=f"suggest_{i}", use_container_width=True):
-                st.session_state.chat_messages.append({"role": "user", "content": prompt})
-                with st.spinner("Thinking…"):
-                    reply = get_assistant_response(st.session_state.chat_messages)
-                st.session_state.chat_messages.append({"role": "assistant", "content": reply})
-                st.rerun()
-
         st.divider()
 
         if not st.session_state.chat_messages:
