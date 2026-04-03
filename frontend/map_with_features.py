@@ -494,7 +494,7 @@ else:
     col_chat = None
 
 with col_main:
-    tab1, tab2, tab3 = st.tabs(["Map & Charts", "Indicators", "Trade Policies"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Map & Charts", "Indicators", "Trade Policies"])
 
 # -------------------------------
 # Preparation for Indicators Tab
@@ -535,6 +535,9 @@ if risk_col == "custom_risk_index":
         ci_min = df["custom_risk_index"].min()
         df["custom_risk_index"] = 100 * ((df["custom_risk_index"] - ci_min) / (ci_max - ci_min))
     
+# -------------------------------
+# Helper function to simulate policy setting
+# -------------------------------    
 def apply_policies(df, policies):
     df_sim = df.copy()
 
@@ -561,10 +564,159 @@ def apply_policies(df, policies):
     df_sim["industry_weight"] = df_sim["exports_vol"] / df_sim["total_export"]
 
     return df_sim
+
+# -------------------------------
+# Overview Tab
+# -------------------------------
+with tab1:
+    # Introduction
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        st.markdown("""
+        This application is designed for government analysts and policymakers focused on international trade.
+                    
+        Assess the influence of geopolitical tensions on global trade by:
+        
+        - Visualising bilateral trade flows
+        - Identifying potential trade opportunities and risks
+        - Simulating trade policies and scenarios
+        - Supporting analysis at both the national and sectoral level
+        """)
+
+    with col2:
+        st.markdown("""
+        <div style="
+        background: var(--color-background-secondary);
+        color: var(--color-text-primary);
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        ">
+
+        <div style="
+        font-size: 13px;
+        color: var(--color-text-secondary);
+        margin-bottom: 6px;
+        letter-spacing: 0.5px;
+        ">
+        YEAR OF DATA
+        </div>
+
+        <div style="
+        font-size: 34px;
+        font-weight: 600;
+        ">
+        2021
+        </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # Instructions
+    st.markdown("### How to Use")
+    col1, col2, col3 = st.columns(3)
+
+    def info_card(title, content, color):
+        return f"""
+        <div style="
+        background: var(--color-background-secondary);
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        display: flex;
+        gap: 12px;
+        ">
+
+        <div style="
+        width: 6px;
+        border-radius: 6px;
+        background: {color};
+        "></div>
+
+        <div>
+            <div style="font-weight: 600; margin-bottom: 6px;">
+                {title}
+            </div>
+            <div style="font-size: 14px; color: var(--color-text-secondary);">
+                {content}
+            </div>
+        </div>
+
+        </div>
+        """
+
+    with col1:
+        st.markdown(info_card("Map & Charts", 
+        """
+        - Explore global trade network
+        - Select an origin country (Singapore/China/Germany/Japan/USA)
+        - Filter by industry, region, partners  
+        - Compare trade metrics and risk indices
+        """, "#7DA8FF"), unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(info_card("Indicators",
+        """
+        - Customise Risk Index  
+        - Select relevant indicators  
+        - Observe ranking changes  
+        """, "#7ED6A7"), unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(info_card("Trade Policies",
+        """
+        - Simulate trade policies by adjusting sliders
+        - Trade multiplier: 
+        - Risk multiplier:
+        - Actual vs expected adjustment:
+        """, "#C6A0FF"), unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+
+    st.markdown("""
+    **World News:** View the latest world news most relevant to the selected origin country. Click on each headline to be directed to original article.
+                  
+    **Trade Assistant:** Chat with the trade assistant (top right) to ask specific questions and generate additional trade insights. <br> 
+    """, unsafe_allow_html=True)
+
+    st.markdown("<i>For more details, please check out the videos below!<i>", unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+
+    st.markdown("---")
+
+    # Gravity Model info
+    st.markdown("### The Gravity Model of Trade")
+    st.markdown("""
+    Inspired by Newton’s law of gravitation, the gravity model estimates trade flows between two countries based on their respective economic sizes and distance between them. In its simplest theoretical form, the model relates trade volume to the Gross Domestic Product (GDP), geographical distance and an error term. \n
+    In this application, the baseline gravity model incorporates additional determinants of trade relationships, including population and import tariffs. These factors enhance the gravity model to highlight the impact of geopolitical tensions on bilateral trade. \n
+    Our modified gravity model focuses on geopolitical alignment, which we quantify based on the voting patterns in the United Nations General Assembly (UNGA). We employ ideal point estimates to derive the ideal point distance between countries, where a smaller distance indicates closer geopolitical alignment.\n  
+    This application presents three measures of trade volumes.
+    
+    - **Actual Trade Volume:** The observed total value (in USD) of real-world trade between countries.
+    - **Baseline Trade Volume:** The predicted trading volume between two countries based on the baseline gravity model using GDP per capita, population, geopolitical distance and import tariffs, excluding geopolitical distance.
+    - **Expected Trade Volume:** The predicted trading volume between two countries based on the modified gravity model, including geopolitical distance along with the other determinants in the baseline model.
+    """, unsafe_allow_html=True)
+    
+    # Risk Index info
+    st.markdown("### The Risk Index")
+    st.markdown("""
+    The risk index is adapted from the Geopolitical Annual Trade Risk Index (GATRI), a metric that integrates geopolitical tensions and global trade dynamics to quantify global trade risk. In this application, the risk index is constructed at the bilateral level, allowing for comparison across countries and industries. \n
+    A lower risk index value suggests greater trade compatibility, while a higher value reflects a higher probability of exposure to trade-related risks.\n
+    The risk index incorporates economic, political and security-related indicators, such as transport costs, ideal point distance and violent events. You may choose to customise your own indicators in the Indicators tab.
+    """, unsafe_allow_html=True)
+
+
 # -------------------------------
 # Map & Charts Tab
 # -------------------------------
-with tab1:
+with tab2:
     # Filters
     col1, col2, col3 = st.columns(3) 
 
@@ -581,15 +733,41 @@ with tab1:
     # Region Searchbox
     regions = ["All"] + sorted(df["region"].unique()) # list of regions
 
+    # Region multiselect
     with col2:
-        region = st.selectbox("Region", regions)
-
-    # Industry Searchbox
-    with col3:
-        selected_industry = st.selectbox(
-            "Industry",
-            ["All"] + sorted(df['industry'].unique())
+        selected_regions = st.multiselect(
+            "Region",
+            options=regions,
+            default=["All"]  # empty = "All"
         )
+
+    # Industry multiselect
+    industries = ["All"] + sorted(df["industry"].unique())
+
+    with col3:
+        selected_industries = st.multiselect(
+            "Industry",
+            options=industries,
+            default=["All"]  # empty = "All"
+        )
+    
+    # Show friendly message and stop the script
+    if not selected_regions or not selected_industries:
+        st.warning("Please select at least one region and one industry.")
+        st.stop()
+    
+    # In case user selectes "All", "Asia", ...
+    # Keep just "All" for consistent selection later
+    def clean_selection(selection):
+        if "All" in selection:
+            return ["All"]
+        return selection
+
+    # Clean region selection
+    selected_regions = clean_selection(selected_regions)
+
+    # Clean industry selection
+    selected_industries = clean_selection(selected_industries)
 
     # Country Multibox
     countries = sorted(df["country_display"].unique())
@@ -638,107 +816,107 @@ with tab1:
     #--------------------------------
     # Multiselect trading partners
     #--------------------------------
-    #funtion to find list of countries in region
-    def filter_region(x):
-        condition=df['region']==x
-        a=df[condition]
-        return sorted(a['country_display'].unique())
-    
-    #Reducing the number of countries that can be selected by region
-    Clist= sorted(df["country_display"].unique())
-    
-    if region != "All":
-            Clist= filter_region(region)
 
-    #function to find top5 countries for default
-    def find_5(data):
-        scores = data.groupby("country").apply(
-            lambda x: (x[risk_col] * x["industry_weight"]).sum()
-        )
-        return scores.sort_values(ascending=True).head(5).index
+    # -------------------------------
+    # Helpers
+    # -------------------------------
+    # For UI
+    def get_country_list(df, selected_regions):
+        if "All" in selected_regions:
+            return sorted(df["country_display"].unique())
+        return sorted(df[df["region"].isin(selected_regions)]["country_display"].unique())
     
-    #Getting list of top 5 countires for multiselect default
-    df_default = df_sim[df_sim["origin"] == origin].copy()
+    # Industry weighted score   
+    # Avoid the apply() entirely and use a more stable aggregation
+    def compute_scores(df, risk_col):
+        return (
+            (df[risk_col] * df["industry_weight"])
+            .groupby(df["country"])
+            .sum()
+            .sort_values(ascending=True)
+            )
 
-    if region != "All":
-        df_region = df_default[df_default["region"] == region].copy()
-        top5_countries = find_5(df_region)
-        base_df = df_region
-    else:
-        top5_countries = find_5(df_default)
-        base_df = df_default
+    # Ranking
+    def get_top_n(df, risk_col, n=5):
+        return compute_scores(df, risk_col).head(n).index.tolist()
+    
+    # -------------------------------
+    # Country list + defaults to display on Trading Partners filter
+    # -------------------------------
+    # controls only countries in user selected regions shows up for user to select
+    Clist = get_country_list(df, selected_regions)
 
-    # Convert to display names
+    # ensure default is specific to user selected origin country
+    # consistent with selected region
+    base_df = df_sim[df_sim["origin"] == origin]
+    if "All" not in selected_regions:
+        base_df = base_df[base_df["region"].isin(selected_regions)]
+    
+    # best trading partners (lowest risk score)
+    top5_countries = get_top_n(base_df, risk_col)
+    
+    # convert to display names
+    # multiselect uses display names
     default_list = (
-        base_df[base_df["country"].isin(top5_countries)]
+        base_df.loc[base_df["country"].isin(top5_countries), ["country", "country_display"]]
         .drop_duplicates("country")["country_display"]
         .tolist()
     )
 
+    # User sees a list of countries
+    # Top 5 are pre-selected
+    # User can override
     with col4:
-        selected_countries= st.multiselect("Trading Partners",Clist,default=default_list)
-        
+        selected_countries = st.multiselect(
+            "Trading Partners", Clist, default=default_list
+        )
+            
     # -------------------------------
     # Filtering results
     # -------------------------------
-    filtered = df_sim[df_sim["origin"] == origin].copy()
-
-    if selected_industry != "All": # filter by industry
-        filtered = filtered[filtered["industry"] == selected_industry]
-
-    if region != "All": # filter by region
-        filtered = filtered[filtered["region"] == region]
-
-
-    if selected_countries != []:
-        filtered=filtered[filtered["country_display"].isin(selected_countries)]
-
-    else: # if no country selected, show top 5 countries by risk index
-        top5_scores = filtered.groupby("country").apply(
-            lambda x: (x[risk_col] * x["industry_weight"]).sum()
-        )
-
-        top5 = (
-            top5_scores
-            .sort_values(ascending=True)
-            .head(5)
-            .index
-            .tolist()
-        )
-        filtered = filtered[filtered["country"].isin(top5_countries)]
-
+    # Start with origin country
+    filtered = df_sim[df_sim["origin"] == origin]
     
+    # Filters that user has selected
+    # Region filter
+    if "All" not in selected_regions:
+        filtered = filtered[filtered["region"].isin(selected_regions)]
 
+    # Industry filter
+    if "All" not in selected_industries:
+        filtered = filtered[filtered["industry"].isin(selected_industries)]
+
+    # User selected countries OR fallback to top 5
+    if selected_countries:
+        filtered = filtered[filtered["country_display"].isin(selected_countries)]
+    else:
+        top5 = get_top_n(filtered, risk_col)
+        filtered = filtered[filtered["country"].isin(top5)]
+        
+    
     # -------------------------------
-    # Top 5 countries
+    # Final computation (information to be displayed on map etc)
     # -------------------------------
+    # Remove self trade
     df_filtered = filtered[filtered["country"] != origin]
 
-    top5 = (
-        df_filtered.groupby("country")[risk_col]
-        .mean()
-        .sort_values(ascending=True)   # lower = better
-        .head(5)
-        .index
-        .tolist()
-    )
-    
-    country_scores = (
-        df_filtered.groupby("country").apply(
-            lambda x: (x[risk_col] * x["industry_weight"]).sum()
-        ).to_dict()
-    )
+    # Standardise Top 5 to use weighted risk by industry (in line with UI, filtering above)
+    top5 = compute_scores(df_filtered, risk_col).head(5).index.tolist()
 
-    # imports/exports over gdp
-    country_totals = df_filtered.groupby('country').apply(
-        lambda x: pd.Series({
-            'imports_pct': ((x['imports_vol'] * x['trade_pct_gdp'])/ x['trade_value']).sum()*100,
-            'exports_pct': ((x['exports_vol'] * x['trade_pct_gdp'])/ x['trade_value']).sum()*100,
-            'arrow_width_factor': x['trade_pct_gdp'].sum()
-        })
-    ).to_dict('index')
+    # Weighted scores
+    country_scores = compute_scores(df_filtered, risk_col).to_dict()
 
-    
+    # Trade metrics
+    country_totals = (
+        df_filtered.groupby("country")
+        .apply(lambda x: pd.Series({
+            "imports_pct": ((x["imports_vol"] * x["trade_pct_gdp"]) / x["trade_value"]).sum() * 100,
+            "exports_pct": ((x["exports_vol"] * x["trade_pct_gdp"]) / x["trade_value"]).sum() * 100,
+            "arrow_width_factor": x["trade_pct_gdp"].sum()
+        }))
+        .to_dict("index")
+    )
+     
 
     # -------------------------------
     # Arrow function
@@ -837,7 +1015,8 @@ with tab1:
             flag_url = ""
 
         # Industry info section for popup
-        if selected_industry == "All":
+        # Case 1: "All" selected → show top 3 industries
+        if "All" in selected_industries:
             country_industry_vols = (
                 df_filtered[df_filtered["country"] == country]
                 .groupby("industry")["trade_value"].sum()
@@ -849,18 +1028,28 @@ with tab1:
                 for ind, vol in country_industry_vols.items()
             ])
             industry_html = f"<div style='margin-top:4px;'><b>Top 3 Industries:</b></div>{top3_rows}"
+
+        # Case 2: Specific industries selected → show those industries    
         else:
             all_industry_vols = (
                 df_sim[(df_sim["origin"] == origin) & (df_sim["country"] == country)]
                 .groupby("industry")["trade_value"].sum()
                 .sort_values(ascending=False)
             )
-            if selected_industry in all_industry_vols.index:
-                ind_vol = all_industry_vols[selected_industry]
-                industry_html = f"<div style='margin-top:4px;'><b>{selected_industry}</b>: {ind_vol:,.0f}</div>"
-            else:
-                industry_html = f"<div style='margin-top:4px;'><b>{selected_industry}</b>: N/A</div>"
 
+            rows = []
+            for ind in selected_industries:
+                if ind in all_industry_vols.index:
+                    ind_vol = all_industry_vols[ind]
+                    rows.append(f"<div style='margin-left:8px;'>• {ind}: {ind_vol:,.0f}</div>")
+                else:
+                    rows.append(f"<div style='margin-left:8px;'>• {ind}: N/A</div>")
+            
+            industry_html = (
+                f"<div style='margin-top:4px;'><b>Selected Industries:</b></div>"
+                + "".join(rows)
+                )
+            
         popup_html = f"""
         <div style="font-family: Arial; font-size: 12px; padding: 8px;">
             <div style="display:flex; align-items:center; gap:8px;">
@@ -1096,13 +1285,23 @@ with tab1:
         # -------------------------------
 
         # Use df_sim (policy-applied) and map display names back for labeling
-        scatter_base = df_sim[df_sim["origin"] == origin].copy()
+        base = df_sim[df_sim["origin"] == origin].copy()
 
         # Apply filters
-        if region != "All":
-            scatter_base = scatter_base[scatter_base["region"] == region]
-        if selected_industry != "All":
-            scatter_base = scatter_base[scatter_base["industry"] == selected_industry]
+        # Region filter
+        if "All" not in selected_regions:
+            base = base[base["region"].isin(selected_regions)]
+
+        # Industry filter
+        if "All" not in selected_industries:
+            base = base[base["industry"].isin(selected_industries)]
+        
+        # Split usage
+        scatter_base = base.copy()
+
+        reference_df = base.copy()  # same filters, just no country restriction
+
+        # Trading Partner filter
         if selected_countries:
             scatter_base = scatter_base[scatter_base["country_display"].isin(selected_countries)]
 
@@ -1123,13 +1322,7 @@ with tab1:
         # -------------------------------
         # Reference mean: same region & industry as current selection
         # (uses full df, not just selected countries)
-        # -------------------------------
-        reference_df = df_sim[df_sim["origin"] == origin].copy()
-        if region != "All":
-            reference_df = reference_df[reference_df["region"] == region]
-        if selected_industry != "All":
-            reference_df = reference_df[reference_df["industry"] == selected_industry]
-
+        # -------------------------------             
         reference_agg = (
             reference_df.groupby("country")
             .agg(
@@ -1160,8 +1353,22 @@ with tab1:
         y_range = [y_mean - y_half, y_mean + y_half]
 
         # Plot
-        industry_label = "All Industries" if selected_industry == "All" else selected_industry
-        region_label = "All Regions" if region == "All" else region
+        # Industry label
+        if "All" in selected_industries:
+            industry_label = "All Industries"
+        elif len(selected_industries) <= 3:
+            industry_label = ", ".join(selected_industries)
+        else:
+            industry_label = f"{len(selected_industries)} Industries"
+
+        # Region label
+        if "All" in selected_regions:
+            region_label = "All Regions"
+        elif len(selected_regions) <= 2:
+            region_label = ", ".join(selected_regions)
+        else:
+            region_label = f"{len(selected_regions)} Regions"
+
         x_label = f"Trade Volume — {region_label} | {industry_label}"
         fig = px.scatter(
             scatter_df,
@@ -1223,14 +1430,31 @@ with tab1:
             opportunity = scatter_df[(scatter_df["trade_value"] < x_mean) & (scatter_df["risk_value"] < y_mean)]
             caution = scatter_df[(scatter_df["trade_value"] >= x_mean) & (scatter_df["risk_value"] >= y_mean)]
     
-            best_opportunity = (
-                opportunity.sort_values("risk_value").iloc[0]["display_name"]
-                if not opportunity.empty else None
-             )
-    
-            industry_str = "across all industries" if selected_industry == "All" else f"in {selected_industry}"
-            region_str   = "globally" if region == "All" else f"in {region}"
+            # Priotise best opportunity by lowest risk first then lowest trade (true “low-risk opportunity”)
+            best_opportunity = None
 
+            if not opportunity.empty:
+                best_opportunity = (
+                    opportunity.sort_values(["risk_value", "trade_value"])
+                    .iloc[0]["display_name"]
+                    )
+            
+            # Industry text
+            if "All" in selected_industries:
+                industry_str = "across all industries"
+            elif len(selected_industries) <= 3:
+                industry_str = f"in {', '.join(selected_industries)}"
+            else:
+                industry_str = f"in {len(selected_industries)} industries"
+
+            # Region text
+            if "All" in selected_regions:
+                region_str = "globally"
+            elif len(selected_regions) <= 3:
+                region_str = f"in {', '.join(selected_regions)}"
+            else:
+                region_str = f"in {len(selected_regions)} regions"
+            
             lines = []
 
             if best_opportunity:
@@ -1254,7 +1478,7 @@ with tab1:
 # -------------------------------
 # Indicators Tab
 # -------------------------------
-with tab2:
+with tab3:
     st.markdown("### Customise Risk Index Indicators")
     st.write("Create your own risk index by selecting which indicators to include in the calculation. You may observe how the risk index and partner rankings change in the Map & Charts tab.")
 
@@ -1290,7 +1514,7 @@ if "risk_mult" not in st.session_state:
 if "ae_adj" not in st.session_state:
     st.session_state["ae_adj"] = DEFAULT_AE
 
-with tab3:
+with tab4:
     
     st.markdown("### Trade Policy Simulation")
     st.write("Simulate the effect of trade policies on risk index, trade volume, and actual vs expected trade. Policies applied here will update the Map & Charts tab.")
@@ -1350,7 +1574,7 @@ with tab3:
 
     with col_b:
         n_policies = len(st.session_state.policies)
-        st.markdown(f"#### {n_policies} Active Policies")
+        st.markdown(f"#### {n_policies} {'Active Policy' if n_policies == 1 else 'Active Policies'}")
         
         if not st.session_state.policies:
             st.info("No active policies yet.")
