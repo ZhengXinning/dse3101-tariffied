@@ -249,10 +249,8 @@ risk_max= df["risk_index_raw"].max()
 risk_min= df["risk_index_raw"].min()
 df["risk_index"]=100* ((df["risk_index_raw"]- risk_min)/(risk_max-risk_min))
 
-
-
-#Shortens description of industry without examples
-df["industry"]=df["industry"].str.split(';').str[0]
+#Only countries with risk_index are shown
+df=df[df["risk_index"]>=0]
 
 #Created industry weights column which measures export volume over total export
 df["total_export"]=df.groupby(["origin","country"])["exports_vol"].transform("sum")
@@ -295,6 +293,112 @@ country_to_display = (
       .set_index("country")["country_display"]
       .to_dict()
 )
+
+# Rename industries
+industry_mapping = {
+    'Electrical machinery and equipment and parts thereof; sound recorders and reproducers; television image and sound recorders and reproducers, parts and accessories of such articles': 'Electrical Machinery & Electronics',
+    'Nuclear reactors, boilers, machinery and mechanical appliances; parts thereof': 'Nuclear Reactors & Machinery',
+    'Optical, photographic, cinematographic, measuring, checking, medical or surgical instruments and apparatus; parts and accessories': 'Optical & Medical Instruments',
+    'Vehicles; other than railway or tramway rolling stock, and parts and accessories thereof': 'Vehicles & Parts',
+    'Rubber and articles thereof': 'Rubber',
+    'Plastics and articles thereof': 'Plastics',
+    'Printed books, newspapers, pictures and other products of the printing industry; manuscripts, typescripts and plans': 'Printed Media',
+    'Tools, implements, cutlery, spoons and forks, of base metal; parts thereof, of base metal': 'Tools & Cutlery',
+    'Furniture; bedding, mattresses, mattress supports, cushions and similar stuffed furnishings; lamps and lighting fittings, n.e.c.; illuminated signs, illuminated name-plates and the like; prefabricated buildings': 'Furniture & Lighting',
+    'Miscellaneous manufactured articles': 'Misc. Manufactured Articles',
+    'Metal; miscellaneous products of base metal': 'Misc. Base Metal Products',
+    'Pharmaceutical products': 'Pharmaceuticals',
+    'Apparel and clothing accessories; knitted or crocheted': 'Knitwear & Clothing',
+    'Paper and paperboard; articles of paper pulp, of paper or paperboard': 'Paper & Paperboard',
+    'Apparel and clothing accessories; not knitted or crocheted': 'Apparel & Clothing',
+    'Inorganic chemicals; organic and inorganic compounds of precious metals; of rare earth metals, of radio-active elements and of isotopes': 'Inorganic Chemicals',
+    'Photographic or cinematographic goods': 'Photographic Goods',
+    'Organic chemicals': 'Organic Chemicals',
+    'Tanning or dyeing extracts; tannins and their derivatives; dyes, pigments and other colouring matter; paints, varnishes; putty, other mastics; inks': 'Dyes, Paints & Inks',
+    'Essential oils and resinoids; perfumery, cosmetic or toilet preparations': 'Cosmetics & Perfumery',
+    'Articles of leather; saddlery and harness; travel goods, handbags and similar containers; articles of animal gut (other than silk-worm gut)': 'Leather Goods',
+    'Furskins and artificial fur; manufactures thereof': 'Fur & Furskins',
+    'Wood and articles of wood; wood charcoal': 'Wood & Charcoal',
+    'Silk': 'Silk',
+    'Cotton': 'Cotton',
+    'Vegetable textile fibres; paper yarn and woven fabrics of paper yarn': 'Vegetable Textile Fibres',
+    'Man-made filaments; strip and the like of man-made textile materials': 'Synthetic Filaments',
+    'Man-made staple fibres': 'Synthetic Staple Fibres',
+    'Wadding, felt and nonwovens, special yarns; twine, cordage, ropes and cables and articles thereof': 'Wadding, Rope & Cables',
+    'Carpets and other textile floor coverings': 'Carpets & Floor Coverings',
+    'Fabrics; special woven fabrics, tufted textile fabrics, lace, tapestries, trimmings, embroidery': 'Woven Fabrics & Lace',
+    'Textile fabrics; impregnated, coated, covered or laminated; textile articles of a kind suitable for industrial use': 'Industrial Textile Fabrics',
+    'Fabrics; knitted or crocheted': 'Knitted Fabrics',
+    'Textiles, made up articles; sets; worn clothing and worn textile articles; rags': 'Made-up Textiles & Rags',
+    'Footwear; gaiters and the like; parts of such articles': 'Footwear',
+    'Headgear and parts thereof': 'Headgear',
+    'Umbrellas, sun umbrellas, walking-sticks, seat sticks, whips, riding crops; and parts thereof': 'Umbrellas & Walking Sticks',
+    'Stone, plaster, cement, asbestos, mica or similar materials; articles thereof': 'Stone, Cement & Plaster',
+    'Ceramic products': 'Ceramics',
+    'Glass and glassware': 'Glass & Glassware',
+    'Natural, cultured pearls; precious, semi-precious stones; precious metals, metals clad with precious metal, and articles thereof; imitation jewellery; coin': 'Jewellery & Precious Metals',
+    'Iron or steel articles': 'Iron & Steel Articles',
+    'Copper and articles thereof': 'Copper',
+    'Nickel and articles thereof': 'Nickel',
+    'Aluminium and articles thereof': 'Aluminium',
+    'Lead and articles thereof': 'Lead',
+    'Zinc and articles thereof': 'Zinc',
+    'Ships, boats and floating structures': 'Ships & Boats',
+    'Clocks and watches and parts thereof': 'Clocks & Watches',
+    'Musical instruments; parts and accessories of such articles': 'Musical Instruments',
+    'Arms and ammunition; parts and accessories thereof': 'Arms & Ammunition',
+    'Toys, games and sports requisites; parts and accessories thereof': 'Toys, Games & Sports',
+    'Railway, tramway locomotives, rolling-stock and parts thereof; railway or tramway track fixtures and fittings and parts thereof; mechanical (including electro-mechanical) traffic signalling equipment of all kinds': 'Railway Equipment',
+    'Trees and other plants, live; bulbs, roots and the like; cut flowers and ornamental foliage': 'Live Plants & Cut Flowers',
+    'Fish and crustaceans, molluscs and other aquatic invertebrates': 'Fish & Seafood',
+    'Aircraft, spacecraft and parts thereof': 'Aircraft & Spacecraft',
+    "Works of art; collectors' pieces and antiques": 'Art & Antiques',
+    'Manufactures of straw, esparto or other plaiting materials; basketware and wickerwork': 'Basketware & Wickerwork',
+    'Explosives; pyrotechnic products; matches; pyrophoric alloys; certain combustible preparations': 'Explosives & Pyrotechnics',
+    'Soap, organic surface-active agents; washing, lubricating, polishing or scouring preparations; artificial or prepared waxes, candles and similar articles, modelling pastes, dental waxes and dental preparations with a basis of plaster': 'Soap, Waxes & Cleaning Products',
+    'Animals; live': 'Live Animals',
+    'Fruit and nuts, edible; peel of citrus fruit or melons': 'Fruit & Nuts',
+    "Dairy produce; birds' eggs; natural honey; edible products of animal origin, not elsewhere specified or included": 'Dairy, Eggs & Honey',
+    'Mineral fuels, mineral oils and products of their distillation; bituminous substances; mineral waxes': 'Mineral Fuels & Oils',
+    'Chemical products n.e.c.': 'Misc. Chemical Products',
+    'Wool, fine or coarse animal hair; horsehair yarn and woven fabric': 'Wool & Animal Hair',
+    'Feathers and down, prepared; and articles made of feather or of down; artificial flowers; articles of human hair': 'Feathers, Down & Artificial Flowers',
+    'Tin; articles thereof': 'Tin',
+    'Metals; n.e.c., cermets and articles thereof': 'Misc. Metals & Cermets',
+    'Albuminoidal substances; modified starches; glues; enzymes': 'Starches, Glues & Enzymes',
+    'Lac; gums, resins and other vegetable saps and extracts': 'Gums & Resins',
+    'Cork and articles of cork': 'Cork',
+    'Coffee, tea, mate and spices': 'Coffee, Tea & Spices',
+    'Beverages, spirits and vinegar': 'Beverages & Spirits',
+    'Vegetables and certain roots and tubers; edible': 'Vegetables',
+    'Products of the milling industry; malt, starches, inulin, wheat gluten': 'Milling Products & Malt',
+    'Oil seeds and oleaginous fruits; miscellaneous grains, seeds and fruit, industrial or medicinal plants; straw and fodder': 'Oil Seeds & Grains',
+    'Animal or vegetable fats and oils and their cleavage products; prepared animal fats; animal or vegetable waxes': 'Animal & Vegetable Fats & Oils',
+    'Meat, fish or crustaceans, molluscs or other aquatic invertebrates; preparations thereof': 'Meat & Seafood Preparations',
+    'Sugars and sugar confectionery': 'Sugar & Confectionery',
+    'Salt; sulphur; earths, stone; plastering materials, lime and cement': 'Salt, Sulphur & Cement',
+    'Preparations of vegetables, fruit, nuts or other parts of plants': 'Preserved Vegetables & Fruit',
+    "Preparations of cereals, flour, starch or milk; pastrycooks' products": 'Cereal & Flour Preparations',
+    'Cocoa and cocoa preparations': 'Cocoa',
+    'Raw hides and skins (other than furskins) and leather': 'Hides, Skins & Leather',
+    'Iron and steel': 'Iron & Steel',
+    'Tobacco and manufactured tobacco substitutes': 'Tobacco',
+    'Cereals': 'Cereals',
+    'Vegetable plaiting materials; vegetable products not elsewhere specified or included': 'Misc. Vegetable Products',
+    'Meat and edible meat offal': 'Meat & Offal',
+    'Animal originated products; not elsewhere specified or included': 'Misc. Animal Products',
+    'Food industries, residues and wastes thereof; prepared animal fodder': 'Animal Feed & Food Waste',
+    'Ores, slag and ash': 'Ores, Slag & Ash',
+    'Fertilizers': 'Fertilizers',
+    'Pulp of wood or other fibrous cellulosic material; recovered (waste and scrap) paper or paperboard': 'Wood Pulp & Waste Paper',
+    'Miscellaneous edible preparations': 'Misc. Edible Preparations',
+    'Machinery and mechanical appliances, boilers, nuclear reactors; parts thereof': 'Machinery & Boilers',
+    'Aircraft, spacecraft, and parts thereof': 'Aircraft & Spacecraft',
+    'Animal, vegetable or microbial fats and oils and their cleavage products; prepared edible fats; animal or vegetable waxes': 'Fats, Oils & Waxes',
+    'Meat, fish, crustaceans, molluscs or other aquatic invertebrates, or insects; preparations thereof': 'Meat, Fish & Insect Preparations',
+    'Tobacco and manufactured tobacco substitutes; products, whether or not containing nicotine, intended for inhalation without combustion; other nicotine containing products intended for the intake of nicotine into the human body': 'Tobacco & Nicotine Products',
+}
+df["industry"] = df["industry"].map(industry_mapping).fillna(df["industry"].str.split(';').str[0])
 
 # -------------------------------
 # Initialise session state
@@ -747,7 +851,7 @@ with tab2:
         )
 
     # Industry multiselect
-    industries = ["All"] + sorted(df["industry"].unique())
+    industries = ["All"] + sorted(df["industry"].dropna().unique())
 
     with col3:
         selected_industries = st.multiselect(
