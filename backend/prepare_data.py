@@ -434,19 +434,199 @@ def df_military_clean():
 
   return df_military
 
+
+north_africa_map = pd.DataFrame({
+    "country": [
+        "Algeria", "Egypt", "Libya", "Morocco", "Tunisia"
+    ],
+    "iso": [
+        "DZA", "EGY", "LBY", "MAR", "TUN"
+    ],
+    "iso_code": [
+        612, 469, 672, 686, 744
+    ]
+})
+
+
+##### Regions to expand #####
+
+# Sub-saharan africa
+sub_saharan_africa_map = pd.DataFrame({
+    "country": [
+        "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi",
+        "Cabo Verde", "Cameroon", "Central African Republic", "Chad",
+        "Comoros", "Congo, Dem. Rep. of the", "Congo, Republic of",
+        "Côte d'Ivoire", "Djibouti", "Equatorial Guinea", "Eritrea",
+        "Eswatini", "Ethiopia", "Gabon", "Gambia, The", "Ghana",
+        "Guinea", "Guinea-Bissau", "Kenya", "Lesotho", "Liberia",
+        "Madagascar", "Malawi", "Mali", "Mauritania", "Mauritius",
+        "Mozambique", "Namibia", "Niger", "Nigeria", "Rwanda",
+        "Senegal", "Seychelles", "Sierra Leone", "Somalia",
+        "South Africa", "South Sudan, Republic of", "Sudan",
+        "São Tomé and Príncipe", "Tanzania", "Togo", "Uganda",
+        "Zambia", "Zimbabwe"
+    ],
+    "iso": [
+        "AGO", "BEN", "BWA", "BFA", "BDI",
+        "CPV", "CMR", "CAF", "TCD",
+        "COM", "COD", "COG",
+        "CIV", "DJI", "GNQ", "ERI",
+        "SWZ", "ETH", "GAB", "GMB", "GHA",
+        "GIN", "GNB", "KEN", "LSO", "LBR",
+        "MDG", "MWI", "MLI", "MRT", "MUS",
+        "MOZ", "NAM", "NER", "NGA", "RWA",
+        "SEN", "SYC", "SLE", "SOM",
+        "ZAF", "SSD", "SDN",
+        "STP", "TZA", "TGO", "UGA",
+        "ZMB", "ZWE"
+    ],
+    "iso_code": [
+        614, 638, 616, 748, 618,
+        624, 622, 626, 628,
+        632, 636, 634,
+        662, 611, 642, 643,
+        734, 644, 646, 648, 652,
+        656, 654, 664, 666, 668,
+        674, 676, 678, 682, 684,
+        688, 728, 692, 694, 714,
+        722, 718, 724, 726,
+        199, 733, 736,
+        716, 738, 742, 746,
+        754, 698
+    ]
+})
+
+#Other Near and Middle East Economies
+middle_east_map = pd.DataFrame({
+    "country": [
+        "Bahrain", "Iran", "Iraq", "Israel", "Jordan", "Kuwait",
+        "Lebanon", "Oman", "Qatar", "Saudi Arabia", "Syria",
+        "United Arab Emirates", "West Bank and Gaza", "Yemen"
+    ],
+    "iso": [
+        "BHR", "IRN", "IRQ", "ISR", "JOR", "KWT",
+        "LBN", "OMN", "QAT", "SAU", "SYR",
+        "ARE", "PSE", "YEM"
+    ],
+    "iso_code": [
+        419, 429, 433, 436, 439, 443,
+        446, 449, 453, 456, 463,
+        466, 487, 474
+    ]
+})
+
+
+# Middle East and Central Asia, mostly central asia
+central_and_south_asia_map = pd.DataFrame({
+    "country": [
+        "Afghanistan", "Armenia", "Azerbaijan", "Georgia", "Kazakhstan",
+        "Kyrgyz Republic", "Tajikistan", "Turkmenistan", "Türkiye, Republic of",
+        "Uzbekistan"
+    ],
+    "iso": [
+        "AFG", "ARM", "AZE", "GEO", "KAZ",
+        "KGZ", "TJK", "TKM", "TUR",
+        "UZB"
+    ],
+    "iso_code": [
+        512, 914, 912, 911, 916,
+        917, 923, 935, 186,
+        926
+    ]
+})
+
+# Latin America
+south_america_map = pd.DataFrame({
+    "country": [
+        "Argentina", "Bolivia", "Brazil", "Chile", "Colombia",
+        "Ecuador", "Paraguay", "Peru", "Uruguay", "Venezuela"
+    ],
+    "iso": [
+        "ARG", "BOL", "BRA", "CHL", "COL",
+        "ECU", "PRY", "PER", "URY", "VEN"
+    ],
+    "iso_code": [
+        213, 218, 223, 228, 233,
+        248, 283, 293, 298, 299
+    ]
+})
+
+caribbean_map = pd.DataFrame({
+    "country": [
+        "Antigua and Barbuda", "Bahamas, The", "Barbados", "Belize",
+        "Dominica", "Grenada", "Guyana", "Haiti", "Jamaica", "Puerto Rico",
+        "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines",
+        "Suriname", "Trinidad and Tobago"
+    ],
+    "iso": [
+        "ATG", "BHS", "BRB", "BLZ",
+        "DMA", "GRD", "GUY", "HTI", "JAM", "PRI",
+        "KNA", "LCA", "VCT",
+        "SUR", "TTO"
+    ],
+    "iso_code": [
+        311, 313, 316, 339,
+        321, 328, 328, 263, 343, 359,
+        361, 362, 364,
+        366, 369
+    ]
+})
+
+################################
+def normalize_columns_fdi(df):
+    df = df.copy()
+    df.columns = [
+        col.replace('\ufeff', '')
+           .replace('ï»¿', '')
+           .strip()
+           .strip('"')
+        for col in df.columns
+    ]
+    return df
+
+
+def country_expansion_fdi(originaldf, region_map, region_id, inward=False):
+    # Split countries in region vs not in region 
+    df_reg = originaldf[originaldf['COUNTERPART_COUNTRY.ID'] == region_id] #for eg North Africa, South America etc
+    df_non_reg = originaldf[originaldf['COUNTERPART_COUNTRY.ID'] != region_id]
+
+    # Assume all the  Countries within region  have equal outward FDI value, for eg you take North Africa Region Outward FDI divided by number of North African Countries
+    if inward:
+        df_reg.loc[:, 'Inward FDI'] = df_reg['Inward FDI'] / len(region_map)
+    else:
+        df_reg.loc[:, 'Outward FDI'] = df_reg['Outward FDI'] / len(region_map)
+
+    # Expand rows to individual countries within the region
+    df_reg_expanded = df_reg.merge(region_map, how='cross')
+
+    # copy the iso values of the newly expanded rows
+    df_reg_expanded['COUNTERPART_COUNTRY.ID'] = df_reg_expanded['iso']
+
+
+
+    # Drop helper columns
+    df_reg_expanded = df_reg_expanded.drop(columns=['country', 'iso', 'iso_code'])
+
+    # Combine back
+    new_combined_df_outward_fdi = pd.concat([df_non_reg, df_reg_expanded], ignore_index=True)
+
+    #keep the first occurrence of duplicates and drop the rest
+    new_combined_df_outward_fdi = new_combined_df_outward_fdi[~new_combined_df_outward_fdi.duplicated(subset=['COUNTRY.ID', 'COUNTERPART_COUNTRY.ID', 'TIME_PERIOD'], keep='first')]
+    return new_combined_df_outward_fdi
+
+
 # clean fdi data
 def df_fdi_clean():
 
-    def normalize_columns(df):
-        df = df.copy()
-        df.columns = [
-            col.replace('\ufeff', '')
-               .replace('ï»¿', '')
-               .strip()
-               .strip('"')
-            for col in df.columns
-        ]
-        return df
+    # this sets the list of regions to expand out for FDI flows
+    maps = [
+        (sub_saharan_africa_map, 'U202'),
+        (north_africa_map, 'GX641'),
+        (south_america_map, 'U005'),
+        (caribbean_map, 'GX226'),
+        (central_and_south_asia_map, 'GX509'),
+        (middle_east_map, 'GX454'),
+    ]
 
     # -----------------------
     # INWARD FDI
@@ -460,13 +640,25 @@ def df_fdi_clean():
         usecols=[0, 1, 2, 6, 7, 10, 11]
     )
 
-    df_inward_fdi = normalize_columns(df_inward_fdi)
+    
+    #### Step 1: Clean inward fdi ####
+    
+    # cleaning the column name
+    df_inward_fdi = normalize_columns_fdi(df_inward_fdi)
+    # drop rows with year as na as may result in issues when merging
     df_inward_fdi = df_inward_fdi.dropna(subset=['TIME_PERIOD'])
+    # converting all year values to integer
     df_inward_fdi['TIME_PERIOD'] = df_inward_fdi['TIME_PERIOD'].astype(int)
+    # converting all fdi flow values to numeric 
     df_inward_fdi['OBS_VALUE'] = pd.to_numeric(df_inward_fdi['OBS_VALUE'], errors='coerce')
 
+
+    #### Step 2: fill missing observed fdi flow with fdi flow reported by counterpart country  ####
+
+    # list of column names which are keys
     keys = ['COUNTRY.ID', 'COUNTERPART_COUNTRY.ID', 'TIME_PERIOD']
 
+    ##### Step 2a. Create separate data frames for observed fdi flows and fdi flows reported by counterpart country #####
     df_o_in = (
         df_inward_fdi[df_inward_fdi['DV_TYPE.ID'] == 'O']
         .groupby(keys, as_index=False)['OBS_VALUE']
@@ -481,9 +673,19 @@ def df_fdi_clean():
         .rename(columns={'OBS_VALUE': 'SCC'})
     )
 
+    ##### Step 2b. Merge the 2 dataframes together on the keys. Fill missing observed value with fdi flows reported by counterpart country #####
     df_inward = pd.merge(df_o_in, df_scc_in, on=keys, how='outer')
+    #If there is no observed data, assume the fdi flows is the data from "Derived using counterparty information" as a substitute
     df_inward['Inward FDI'] = df_inward['O'].fillna(df_inward['SCC'])
+
+    #### Step 3: Keep only the key columns and the inward fdi column ####
     df_inward = df_inward[keys + ['Inward FDI']]
+
+    #### Step 4: Goes through all the regions, and expand them out ####
+    for region_map, code in maps:
+        df_inward = country_expansion_fdi(df_inward, region_map, code, inward=True)
+
+
 
     # -----------------------
     # OUTWARD FDI
@@ -497,12 +699,25 @@ def df_fdi_clean():
         usecols=[0, 1, 2, 6, 7, 10, 11]
     )
 
-    df_outward_fdi = normalize_columns(df_outward_fdi)
+
+    #### Step 1: Clean inward fdi ####
+    
+    # cleaning the column name
+    df_outward_fdi = normalize_columns_fdi(df_outward_fdi)
+    # drop rows with year as na as may result in issues when merging
     df_outward_fdi = df_outward_fdi.dropna(subset=['TIME_PERIOD'])
+    # converting all year values to integer
     df_outward_fdi['TIME_PERIOD'] = df_outward_fdi['TIME_PERIOD'].astype(int)
+    # converting all fdi flow values to numeric 
     df_outward_fdi['OBS_VALUE'] = pd.to_numeric(df_outward_fdi['OBS_VALUE'], errors='coerce')
 
+
+    #### Step 2: fill missing observed fdi flow with fdi flow reported by counterpart country  ####
+
+    # list of column names which are keys
     keys = ['COUNTRY.ID', 'COUNTERPART_COUNTRY.ID', 'TIME_PERIOD']
+
+    ##### Step 2a. Create separate data frames for observed fdi flows and fdi flows reported by counterpart country #####
 
     df_o = (
         df_outward_fdi[df_outward_fdi['DV_TYPE.ID'] == 'O']
@@ -518,10 +733,19 @@ def df_fdi_clean():
         .rename(columns={'OBS_VALUE': 'SCC'})
     )
 
+    ##### Step 2b. Merge the 2 dataframes together on the keys. Fill missing observed value with fdi flows reported by counterpart country #####
     df_outward = pd.merge(df_o, df_scc, on=keys, how='outer')
+    #If there is no observed data, assume the fdi flows is the data from "Derived using counterparty information" as a substitute
     df_outward['Outward FDI'] = df_outward['O'].fillna(df_outward['SCC'])
+
+    #### Step 3: Keep only the key columns and the inward fdi column ####
     df_outward = df_outward[keys + ['Outward FDI']]
 
+    #### Step 4: Goes through all the regions, and expand them out ####
+    for region_map, code in maps:
+        df_outward = country_expansion_fdi(df_outward, region_map, code)
+
+    # Merge both the inward and outward flows on the keys 
     df_fdi_merged = pd.merge(
         df_inward,
         df_outward,
@@ -529,6 +753,13 @@ def df_fdi_clean():
         how='outer'
     )
 
+    # Drop na found in inward fdi and outward fdi because of the arithmetic operation later to prevent nan propogation
     df_fdi_merged = df_fdi_merged.dropna(subset=['Inward FDI', 'Outward FDI'])
+
+
+
+    #calculating the sum of absolute inward and outward fdi flows
     df_fdi_merged['total_fdi'] = df_fdi_merged['Inward FDI'] + df_fdi_merged['Outward FDI']
+
+
     return df_fdi_merged
