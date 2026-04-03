@@ -494,7 +494,7 @@ else:
     col_chat = None
 
 with col_main:
-    tab1, tab2, tab3 = st.tabs(["Map & Charts", "Indicators", "Trade Policies"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Map & Charts", "Indicators", "Trade Policies"])
 
 # -------------------------------
 # Preparation for Indicators Tab
@@ -561,10 +561,158 @@ def apply_policies(df, policies):
     df_sim["industry_weight"] = df_sim["exports_vol"] / df_sim["total_export"]
 
     return df_sim
+
+# -------------------------------
+# Overview Tab
+# -------------------------------
+with tab1:
+    # Introduction
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        st.markdown("""
+        This application is designed for government analysts and policymakers focused on international trade.
+                    
+        Assess the influence of geopolitical tensions on global trade by:
+        
+        - Visualising bilateral trade flows
+        - Identifying potential trade opportunities and risks
+        - Simulating trade policies and scenarios
+        - Supporting analysis at both the national and sectoral level
+        """)
+
+    with col2:
+        st.markdown("""
+        <div style="
+        background: var(--color-background-secondary);
+        color: var(--color-text-primary);
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        ">
+
+        <div style="
+        font-size: 13px;
+        color: var(--color-text-secondary);
+        margin-bottom: 6px;
+        letter-spacing: 0.5px;
+        ">
+        YEAR OF DATA
+        </div>
+
+        <div style="
+        font-size: 34px;
+        font-weight: 600;
+        ">
+        2021
+        </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # Instructions
+    st.markdown("### How to Use")
+    col1, col2, col3 = st.columns(3)
+
+    def info_card(title, content, color):
+        return f"""
+        <div style="
+        background: var(--color-background-secondary);
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        display: flex;
+        gap: 12px;
+        ">
+
+        <div style="
+        width: 6px;
+        border-radius: 6px;
+        background: {color};
+        "></div>
+
+        <div>
+            <div style="font-weight: 600; margin-bottom: 6px;">
+                {title}
+            </div>
+            <div style="font-size: 14px; color: var(--color-text-secondary);">
+                {content}
+            </div>
+        </div>
+
+        </div>
+        """
+
+    with col1:
+        st.markdown(info_card("Map & Charts", 
+        """
+        - Explore global trade network
+        - Select an origin country (Singapore/China/Germany/Japan/USA)
+        - Filter by industry, region, partners  
+        - Compare trade metrics and risk indices
+        """, "#7DA8FF"), unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(info_card("Indicators",
+        """
+        - Customise Risk Index  
+        - Select relevant indicators  
+        - Observe ranking changes  
+        """, "#7ED6A7"), unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(info_card("Trade Policies",
+        """
+        - Simulate trade policies by adjusting sliders
+        - Trade multiplier: 
+        - Risk multiplier:
+        - Actual vs expected adjustment:
+        """, "#C6A0FF"), unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+
+    st.markdown("""
+    **World News:** View the latest world news most relevant to the selected origin country. Click on each headline to be directed to original article.
+                  
+    **Trade Assistant:** Chat with the trade assistant (top right) to ask specific questions and generate additional trade insights. <br> 
+    """, unsafe_allow_html=True)
+
+    st.markdown("<i>For more details, please check out the videos below!<i>", unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+
+    st.markdown("---")
+
+    # Gravity Model info
+    st.markdown("### The Gravity Model of Trade")
+    st.markdown("""
+    Inspired by Newton’s law of gravitation, the gravity model estimates trade flows between two countries based on their respective economic sizes and distance between them. In its simplest theoretical form, the model relates trade volume to the Gross Domestic Product (GDP), geographical distance and an error term. \n
+    In this application, the baseline gravity model incorporates additional determinants of trade relationships, including population and import tariffs. These factors enhance the gravity model to highlight the impact of geopolitical tensions on bilateral trade. \n
+    Our modified gravity model focuses on geopolitical alignment, which we quantify based on the voting patterns in the United Nations General Assembly (UNGA). We employ ideal point estimates to derive the ideal point distance between countries, where a smaller distance indicates closer geopolitical alignment.\n  
+    This application presents three measures of trade volumes.
+    
+    - **Actual Trade Volume:** The observed total value (in USD) of real-world trade between countries.
+    - **Baseline Trade Volume:** The predicted trading volume between two countries based on the baseline gravity model using GDP per capita, population, geopolitical distance and import tariffs, excluding geopolitical distance.
+    - **Expected Trade Volume:** The predicted trading volume between two countries based on the modified gravity model, including geopolitical distance along with the other determinants in the baseline model.
+    """, unsafe_allow_html=True)
+    
+    # Risk Index info
+    st.markdown("### The Risk Index")
+    st.markdown("""
+    The risk index is adapted from the Geopolitical Annual Trade Risk Index (GATRI), a metric that integrates geopolitical tensions and global trade dynamics to quantify global trade risk. In this application, the risk index is constructed at the bilateral level, allowing for comparison across countries and industries. \n
+    A lower risk index value suggests greater trade compatibility, while a higher value reflects a higher probability of exposure to trade-related risks.\n
+    The risk index incorporates economic, political and security-related indicators, such as transport costs, ideal point distance and violent events. You may choose to customise your own indicators in the Indicators tab.
+    """, unsafe_allow_html=True)
+
 # -------------------------------
 # Map & Charts Tab
 # -------------------------------
-with tab1:
+with tab2:
     # Filters
     col1, col2, col3 = st.columns(3) 
 
@@ -1254,7 +1402,7 @@ with tab1:
 # -------------------------------
 # Indicators Tab
 # -------------------------------
-with tab2:
+with tab3:
     st.markdown("### Customise Risk Index Indicators")
     st.write("Create your own risk index by selecting which indicators to include in the calculation. You may observe how the risk index and partner rankings change in the Map & Charts tab.")
 
@@ -1290,7 +1438,7 @@ if "risk_mult" not in st.session_state:
 if "ae_adj" not in st.session_state:
     st.session_state["ae_adj"] = DEFAULT_AE
 
-with tab3:
+with tab4:
     
     st.markdown("### Trade Policy Simulation")
     st.write("Simulate the effect of trade policies on risk index, trade volume, and actual vs expected trade. Policies applied here will update the Map & Charts tab.")
