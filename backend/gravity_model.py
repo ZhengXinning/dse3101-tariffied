@@ -380,3 +380,10 @@ if __name__ == "__main__":
     os.makedirs("./backend/gravity_models", exist_ok=True)
     comb_model.save('./backend/gravity_models/combined_model.pickle')
     comb_model_base.save('./backend/gravity_models/combined_model_base.pickle')
+
+    # Save coefficient for model w idealpt
+    df_coef = pd.DataFrame({
+    'variable': comb_model.params.index,
+    'coef': comb_model.params.values})
+    print(df_coef)
+    df_coef.to_parquet("./backend/temp_df/df_coef.parquet")
