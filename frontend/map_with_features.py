@@ -2,6 +2,7 @@
 # Import libraries
 # -------------------------------
 import pandas as pd
+import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
 
@@ -241,6 +242,10 @@ df = df.rename(columns={
      "Risk_Index_Raw": "risk_index_raw"
 })
 
+# Load coefficient data set for Trade Policy simulation
+file_path_coef = BASE_DIR.parent / "backend" / "temp_df" / "df_coef.parquet"
+df_coef = pd.read_parquet(file_path_coef, engine="fastparquet")
+coef_map = dict(zip(df_coef["variable"], df_coef["coef"]))
 
 #setting year for the data
 df=df[df["year"] ==2021] 
@@ -250,9 +255,8 @@ risk_min= df["risk_index_raw"].min()
 df["risk_index"]=100* ((df["risk_index_raw"]- risk_min)/(risk_max-risk_min))
 
 
-
-#Shortens description of industry without examples
-df["industry"]=df["industry"].str.split(';').str[0]
+#Only countries with risk_index are shown
+df=df[df["risk_index"]>=0]
 
 #Created industry weights column which measures export volume over total export
 df["total_export"]=df.groupby(["origin","country"])["exports_vol"].transform("sum")
@@ -295,6 +299,113 @@ country_to_display = (
       .set_index("country")["country_display"]
       .to_dict()
 )
+
+# Rename industries
+industry_mapping = {
+    'Electrical machinery and equipment and parts thereof; sound recorders and reproducers; television image and sound recorders and reproducers, parts and accessories of such articles': 'Electrical Machinery & Electronics',
+    'Nuclear reactors, boilers, machinery and mechanical appliances; parts thereof': 'Nuclear Reactors & Machinery',
+    'Optical, photographic, cinematographic, measuring, checking, medical or surgical instruments and apparatus; parts and accessories': 'Optical & Medical Instruments',
+    'Vehicles; other than railway or tramway rolling stock, and parts and accessories thereof': 'Vehicles & Parts',
+    'Rubber and articles thereof': 'Rubber',
+    'Plastics and articles thereof': 'Plastics',
+    'Printed books, newspapers, pictures and other products of the printing industry; manuscripts, typescripts and plans': 'Printed Media',
+    'Tools, implements, cutlery, spoons and forks, of base metal; parts thereof, of base metal': 'Tools & Cutlery',
+    'Furniture; bedding, mattresses, mattress supports, cushions and similar stuffed furnishings; lamps and lighting fittings, n.e.c.; illuminated signs, illuminated name-plates and the like; prefabricated buildings': 'Furniture & Lighting',
+    'Miscellaneous manufactured articles': 'Misc. Manufactured Articles',
+    'Metal; miscellaneous products of base metal': 'Misc. Base Metal Products',
+    'Pharmaceutical products': 'Pharmaceuticals',
+    'Apparel and clothing accessories; knitted or crocheted': 'Knitwear & Clothing',
+    'Paper and paperboard; articles of paper pulp, of paper or paperboard': 'Paper & Paperboard',
+    'Apparel and clothing accessories; not knitted or crocheted': 'Apparel & Clothing',
+    'Inorganic chemicals; organic and inorganic compounds of precious metals; of rare earth metals, of radio-active elements and of isotopes': 'Inorganic Chemicals',
+    'Photographic or cinematographic goods': 'Photographic Goods',
+    'Organic chemicals': 'Organic Chemicals',
+    'Tanning or dyeing extracts; tannins and their derivatives; dyes, pigments and other colouring matter; paints, varnishes; putty, other mastics; inks': 'Dyes, Paints & Inks',
+    'Essential oils and resinoids; perfumery, cosmetic or toilet preparations': 'Cosmetics & Perfumery',
+    'Articles of leather; saddlery and harness; travel goods, handbags and similar containers; articles of animal gut (other than silk-worm gut)': 'Leather Goods',
+    'Furskins and artificial fur; manufactures thereof': 'Fur & Furskins',
+    'Wood and articles of wood; wood charcoal': 'Wood & Charcoal',
+    'Silk': 'Silk',
+    'Cotton': 'Cotton',
+    'Vegetable textile fibres; paper yarn and woven fabrics of paper yarn': 'Vegetable Textile Fibres',
+    'Man-made filaments; strip and the like of man-made textile materials': 'Synthetic Filaments',
+    'Man-made staple fibres': 'Synthetic Staple Fibres',
+    'Wadding, felt and nonwovens, special yarns; twine, cordage, ropes and cables and articles thereof': 'Wadding, Rope & Cables',
+    'Carpets and other textile floor coverings': 'Carpets & Floor Coverings',
+    'Fabrics; special woven fabrics, tufted textile fabrics, lace, tapestries, trimmings, embroidery': 'Woven Fabrics & Lace',
+    'Textile fabrics; impregnated, coated, covered or laminated; textile articles of a kind suitable for industrial use': 'Industrial Textile Fabrics',
+    'Fabrics; knitted or crocheted': 'Knitted Fabrics',
+    'Textiles, made up articles; sets; worn clothing and worn textile articles; rags': 'Made-up Textiles & Rags',
+    'Footwear; gaiters and the like; parts of such articles': 'Footwear',
+    'Headgear and parts thereof': 'Headgear',
+    'Umbrellas, sun umbrellas, walking-sticks, seat sticks, whips, riding crops; and parts thereof': 'Umbrellas & Walking Sticks',
+    'Stone, plaster, cement, asbestos, mica or similar materials; articles thereof': 'Stone, Cement & Plaster',
+    'Ceramic products': 'Ceramics',
+    'Glass and glassware': 'Glass & Glassware',
+    'Natural, cultured pearls; precious, semi-precious stones; precious metals, metals clad with precious metal, and articles thereof; imitation jewellery; coin': 'Jewellery & Precious Metals',
+    'Iron or steel articles': 'Iron & Steel Articles',
+    'Copper and articles thereof': 'Copper',
+    'Nickel and articles thereof': 'Nickel',
+    'Aluminium and articles thereof': 'Aluminium',
+    'Lead and articles thereof': 'Lead',
+    'Zinc and articles thereof': 'Zinc',
+    'Ships, boats and floating structures': 'Ships & Boats',
+    'Clocks and watches and parts thereof': 'Clocks & Watches',
+    'Musical instruments; parts and accessories of such articles': 'Musical Instruments',
+    'Arms and ammunition; parts and accessories thereof': 'Arms & Ammunition',
+    'Toys, games and sports requisites; parts and accessories thereof': 'Toys, Games & Sports',
+    'Railway, tramway locomotives, rolling-stock and parts thereof; railway or tramway track fixtures and fittings and parts thereof; mechanical (including electro-mechanical) traffic signalling equipment of all kinds': 'Railway Equipment',
+    'Trees and other plants, live; bulbs, roots and the like; cut flowers and ornamental foliage': 'Live Plants & Cut Flowers',
+    'Fish and crustaceans, molluscs and other aquatic invertebrates': 'Fish & Seafood',
+    'Aircraft, spacecraft and parts thereof': 'Aircraft & Spacecraft',
+    "Works of art; collectors' pieces and antiques": 'Art & Antiques',
+    'Manufactures of straw, esparto or other plaiting materials; basketware and wickerwork': 'Basketware & Wickerwork',
+    'Explosives; pyrotechnic products; matches; pyrophoric alloys; certain combustible preparations': 'Explosives & Pyrotechnics',
+    'Soap, organic surface-active agents; washing, lubricating, polishing or scouring preparations; artificial or prepared waxes, candles and similar articles, modelling pastes, dental waxes and dental preparations with a basis of plaster': 'Soap, Waxes & Cleaning Products',
+    'Animals; live': 'Live Animals',
+    'Fruit and nuts, edible; peel of citrus fruit or melons': 'Fruit & Nuts',
+    "Dairy produce; birds' eggs; natural honey; edible products of animal origin, not elsewhere specified or included": 'Dairy, Eggs & Honey',
+    'Mineral fuels, mineral oils and products of their distillation; bituminous substances; mineral waxes': 'Mineral Fuels & Oils',
+    'Chemical products n.e.c.': 'Misc. Chemical Products',
+    'Wool, fine or coarse animal hair; horsehair yarn and woven fabric': 'Wool & Animal Hair',
+    'Feathers and down, prepared; and articles made of feather or of down; artificial flowers; articles of human hair': 'Feathers, Down & Artificial Flowers',
+    'Tin; articles thereof': 'Tin',
+    'Metals; n.e.c., cermets and articles thereof': 'Misc. Metals & Cermets',
+    'Albuminoidal substances; modified starches; glues; enzymes': 'Starches, Glues & Enzymes',
+    'Lac; gums, resins and other vegetable saps and extracts': 'Gums & Resins',
+    'Cork and articles of cork': 'Cork',
+    'Coffee, tea, mate and spices': 'Coffee, Tea & Spices',
+    'Beverages, spirits and vinegar': 'Beverages & Spirits',
+    'Vegetables and certain roots and tubers; edible': 'Vegetables',
+    'Products of the milling industry; malt, starches, inulin, wheat gluten': 'Milling Products & Malt',
+    'Oil seeds and oleaginous fruits; miscellaneous grains, seeds and fruit, industrial or medicinal plants; straw and fodder': 'Oil Seeds & Grains',
+    'Animal or vegetable fats and oils and their cleavage products; prepared animal fats; animal or vegetable waxes': 'Animal & Vegetable Fats & Oils',
+    'Meat, fish or crustaceans, molluscs or other aquatic invertebrates; preparations thereof': 'Meat & Seafood Preparations',
+    'Sugars and sugar confectionery': 'Sugar & Confectionery',
+    'Salt; sulphur; earths, stone; plastering materials, lime and cement': 'Salt, Sulphur & Cement',
+    'Preparations of vegetables, fruit, nuts or other parts of plants': 'Preserved Vegetables & Fruit',
+    "Preparations of cereals, flour, starch or milk; pastrycooks' products": 'Cereal & Flour Preparations',
+    'Cocoa and cocoa preparations': 'Cocoa',
+    'Raw hides and skins (other than furskins) and leather': 'Hides, Skins & Leather',
+    'Iron and steel': 'Iron & Steel',
+    'Tobacco and manufactured tobacco substitutes': 'Tobacco',
+    'Cereals': 'Cereals',
+    'Vegetable plaiting materials; vegetable products not elsewhere specified or included': 'Misc. Vegetable Products',
+    'Meat and edible meat offal': 'Meat & Offal',
+    'Animal originated products; not elsewhere specified or included': 'Misc. Animal Products',
+    'Food industries, residues and wastes thereof; prepared animal fodder': 'Animal Feed & Food Waste',
+    'Ores, slag and ash': 'Ores, Slag & Ash',
+    'Fertilizers': 'Fertilizers',
+    'Pulp of wood or other fibrous cellulosic material; recovered (waste and scrap) paper or paperboard': 'Wood Pulp & Waste Paper',
+    'Miscellaneous edible preparations': 'Misc. Edible Preparations',
+    'Machinery and mechanical appliances, boilers, nuclear reactors; parts thereof': 'Machinery & Boilers',
+    'Aircraft, spacecraft, and parts thereof': 'Aircraft & Spacecraft',
+    'Animal, vegetable or microbial fats and oils and their cleavage products; prepared edible fats; animal or vegetable waxes': 'Fats, Oils & Waxes',
+    'Meat, fish, crustaceans, molluscs or other aquatic invertebrates, or insects; preparations thereof': 'Meat, Fish & Insect Preparations',
+    'Tobacco and manufactured tobacco substitutes; products, whether or not containing nicotine, intended for inhalation without combustion; other nicotine containing products intended for the intake of nicotine into the human body': 'Tobacco & Nicotine Products',
+}
+
+df["industry"] = df["industry"].map(industry_mapping).fillna(df["industry"].str.split(';').str[0])
 
 # -------------------------------
 # Initialise session state
@@ -341,7 +452,90 @@ h2, h3 {
 }
 </style>
             
+<style>
+/* TAB STYLING */
+/* Reset tab background */
+.stTabs [data-baseweb="tab"] {
+    background-color: transparent !important;
+    color: #61656C; /* default grey */
+}
+/* Remove hover background */
+.stTabs [data-baseweb="tab"]:hover {
+    background-color: transparent !important;
+}
+
+/* Hide real underline */
+.stTabs [data-baseweb="tab-highlight"] {
+    display: none;
+}
+
+/* TAB 1 */
+/* Hover */
+.stTabs [data-baseweb="tab"]:nth-of-type(1):hover {
+    color: #F92828 !important;
+}
+
+/* Active tab text */
+.stTabs [data-baseweb="tab"]:nth-of-type(1)[aria-selected="true"] {
+    color: #F92828 !important;
+}
             
+/* Colour line below */
+.stTabs [data-baseweb="tab"]:nth-of-type(1)[aria-selected="true"] {
+    border-bottom: 3px solid #F92828;
+}
+                 
+/* TAB 2 */
+/* Hover */
+.stTabs [data-baseweb="tab"]:nth-of-type(2):hover {
+    color: #225CD0 !important;
+}
+
+/* Active tab text */
+.stTabs [data-baseweb="tab"]:nth-of-type(2)[aria-selected="true"] {
+    color: #225CD0 !important;
+}
+            
+/* Colour line below */
+.stTabs [data-baseweb="tab"]:nth-of-type(2)[aria-selected="true"] {
+    border-bottom: 3px solid #225CD0;
+}
+
+            
+/* TAB 3 */
+/* Hover */
+.stTabs [data-baseweb="tab"]:nth-of-type(3):hover {
+    color: #0F9C51 !important;
+}
+
+/* Active tab text */
+.stTabs [data-baseweb="tab"]:nth-of-type(3)[aria-selected="true"] {
+    color: #0F9C51 !important;
+}
+            
+/* Colour line below */
+.stTabs [data-baseweb="tab"]:nth-of-type(3)[aria-selected="true"] {
+    border-bottom: 3px solid #0F9C51;
+}
+            
+/* TAB 4 */
+/* Hover */
+.stTabs [data-baseweb="tab"]:nth-of-type(4):hover {
+    color: #8D51E8 !important;
+}
+
+/* Active tab text */
+.stTabs [data-baseweb="tab"]:nth-of-type(4)[aria-selected="true"] {
+    color: #8D51E8 !important;
+}
+            
+/* Colour line below */
+.stTabs [data-baseweb="tab"]:nth-of-type(4)[aria-selected="true"] {
+    border-bottom: 3px solid #8D51E8;
+}
+
+</style>
+                 
 
 <style>
 /* Reduce font size for the right panel */
@@ -540,30 +734,64 @@ if risk_col == "custom_risk_index":
 # -------------------------------
 # Helper function to simulate policy setting
 # -------------------------------    
-def apply_policies(df, policies):
+def apply_policies(df, policies, coef_map):
     df_sim = df.copy()
 
-    for policy in policies:
-        condition = (
-            (df_sim["origin"] == policy["origin"]) &
-            (df_sim["country"] == policy["country"])
-        )
+    # reset to baseline
+    df_sim["predicted_exports"] = df["predicted_exports"].copy()
 
-        if policy["industry"] != "All":
-            condition &= (df_sim["industry"] == policy["industry"])
+    # Apply gravity model effects in log space
+    for i, row in df_sim.iterrows():
 
-        if policy["trade_multiplier"] != 1.0:
-            df_sim.loc[condition, "trade_value"] *= policy["trade_multiplier"]
+        total_log_effect = 0
 
-        if policy["risk_multiplier"] != 1.0:
-            df_sim.loc[condition, "risk_index"] *= policy["risk_multiplier"]
+        for policy in policies:
 
-        if policy["ae_adjustment"] != 0:
-            df_sim.loc[condition, "actual_vs_expected"] += policy["ae_adjustment"]
+            condition = (
+                (row["origin"] == policy["origin"]) and
+                (row["country"] == policy["country"])
+            )
 
-    # recompute weights AFTER simulation
-    df_sim["total_export"] = df_sim.groupby(["origin", "country"])["exports_vol"].transform("sum")
-    df_sim["industry_weight"] = df_sim["exports_vol"] / df_sim["total_export"]
+            if policy["industry"] != "All":
+                condition &= (df_sim["industry"] == policy["industry"])
+
+            if not condition:
+                continue
+
+            for var, pct_change in policy["policy_vars"].items():
+
+                coef = coef_map.get(var, 0)
+
+                multiplier = 1 + pct_change / 100
+                multiplier = max(multiplier, 1e-6)
+
+                total_log_effect += coef * np.log(multiplier)
+
+        # apply once
+        df_sim.loc[i, "exports_vol"] *= np.exp(total_log_effect)
+
+    # Recompute actual vs expected
+    df_sim["actual_vs_expected"] = (
+        df_sim["exports_vol"] / df_sim["predicted_exports"]
+    )
+
+    # Trade as % of GDP
+    df_sim["trade_pct_gdp"] = (
+        df_sim["exports_vol"] / df_sim["origin_gdp"]
+    )
+
+    # Weights 
+    df_sim["total_export"] = df_sim.groupby(
+        ["origin", "country"]
+    )["exports_vol"].transform("sum")
+
+    df_sim["industry_weight"] = (
+        df_sim["exports_vol"] / df_sim["total_export"]
+    )
+    # Recompute trade_value
+    df_sim["trade_value"] = (
+        df_sim["exports_vol"] + df_sim["imports_vol"]
+    )
 
     return df_sim
 
@@ -732,7 +960,8 @@ with tab2:
         origin = st.selectbox(
             "Origin Country",
             origin_options,
-            index=default_origin_idx
+            index=default_origin_idx,
+            key="selected_origin"
         )
 
     # Region Searchbox
@@ -747,7 +976,7 @@ with tab2:
         )
 
     # Industry multiselect
-    industries = ["All"] + sorted(df["industry"].unique())
+    industries = ["All"] + sorted(df["industry"].dropna().unique())
 
     with col3:
         selected_industries = st.multiselect(
@@ -816,7 +1045,7 @@ with tab2:
     # -------------------------------
     # Apply policies (outside tabs so tab1 map always reflects active policies)
     # -------------------------------
-    df_sim = apply_policies(df, st.session_state.policies)
+    df_sim = apply_policies(df, st.session_state.policies, coef_map)
 
     #--------------------------------
     # Multiselect trading partners
@@ -1042,7 +1271,7 @@ with tab2:
                 f"<div style='margin-left:8px;'>• {ind}: {vol:,.0f}</div>"
                 for ind, vol in country_industry_vols.items()
             ])
-            industry_html = f"<div style='margin-top:4px;'><b>Top 3 Industries:</b></div>{top3_rows}"
+            industry_html = f"<div style='margin-top:4px;'><b>Top 3 Industries (by Trade Value):</b></div>{top3_rows}"
 
         # Case 2: Specific industries selected → show those industries    
         else:
@@ -1076,11 +1305,11 @@ with tab2:
 
             <div>Rank: <b>#{rank}</b></div>
             <div>Risk Index: <b>{row[risk_col]:.2f}</b></div>
-            <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{message:.30s}</div>
+            <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{message:.30s}</b></div>
             <div>Actual vs Expected: <b>{weighted_ae:.0f}%</b></div>
 
-            <div><b>Imports</b>: {imports_vol:.2f}%</div>
-            <div><b>Exports</b>: {exports_vol:.2f}%</div>
+            <div>Imports: <b>{imports_vol:.2f}%</b></div>
+            <div>Exports: <b>{exports_vol:.2f}%</b></div>
             {industry_html}
         </div>
         """
@@ -1280,7 +1509,7 @@ with tab2:
                     </div>
                     <div style="color: gray; font-size:15px;margin-bottom: 5px;"> Rank: #{data['Rank']}</div>
                     <div style="margin-bottom: 3px;"> Risk Index: <span style="color:{text_color};"><b>{data['Risk Index']:.2f}</span></b></div>
-                    <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{data['message']:.30s}</div>
+                    <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{data['message']:.30s}</b></div>
                     <div style="margin-bottom: 3px;"> Actual vs Expected: <b>{data['Actual vs Expected']:.0f}%</b></div>
                     <div style="margin-bottom: 3px;"> Imports: {data['Imports %']:.2f}%</div>
                     <div style="margin-bottom: 3px;">Exports: {data['Exports %']:.2f}%</div>
@@ -1520,18 +1749,20 @@ with tab3:
 # -------------------------------
 # Trade Policy Tab
 # -------------------------------
-DEFAULT_TRADE = 1.0
-DEFAULT_RISK  = 1.0
-DEFAULT_AE    = 0.0
+DEFAULT_POLICY_PCT = 0.0 # 0% change
 
-if "trade_mult" not in st.session_state:
-    st.session_state["trade_mult"] = DEFAULT_TRADE
+policy_vars = [
+    "ln_reporter_gdp_per_capita",
+    "ln_partner_gdp_per_capita",
+    "ln_distcap",
+    "ln_tariff",
+    "ln_ideal_point_distance"
+]
 
-if "risk_mult" not in st.session_state:
-    st.session_state["risk_mult"] = DEFAULT_RISK
-
-if "ae_adj" not in st.session_state:
-    st.session_state["ae_adj"] = DEFAULT_AE
+# Initialize session state as % changes
+for var in policy_vars:
+    if var not in st.session_state:
+        st.session_state[var] = DEFAULT_POLICY_PCT
 
 with tab4:
     
@@ -1547,43 +1778,95 @@ with tab4:
             st.rerun()
 
     col_a, col_b = st.columns(2)
-
+    
+    policy_origin = st.session_state.get("selected_origin")
     with col_a:
         st.markdown("#### Add New Policy")
-        policy_origin = st.selectbox("Origin", origin_options, key="origin")
-        policy_country_display  = st.selectbox("Partner Country", sorted(df["country_display"].unique()), key="policy_country")
-        # Convert back to actual country name
-        policy_country = display_to_country[policy_country_display]
+        # Origin comes from Tab 1 selection
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.selectbox(
+                "Origin",
+                origin_options,
+                index=default_origin_idx,
+                key="policy_origin"
+            )
+        with c2:
+            policy_country_display  = st.selectbox("Partner Country", sorted(df["country_display"].unique()), key="policy_country")
+            # Convert back to actual country name
+            policy_country = display_to_country[policy_country_display]
         policy_industry = st.selectbox("Industry", ["All"] + sorted(df["industry"].unique()), key="policy_industry")
 
-        if "last_origin" not in st.session_state:
-            st.session_state.last_origin = policy_origin
+        st.markdown("##### Policy Levers")
 
-        if policy_origin != st.session_state.last_origin:
-            st.session_state.trade_mult = 1.0
-            st.session_state.risk_mult  = 1.0
-            st.session_state.ae_adj     = 0.0
-
-            st.session_state.last_origin = policy_origin
-
-        sl1, sl2, sl3 = st.columns(3)
-        with sl1:
-            trade_mult = st.slider("Trade Multiplier", 0.1, 5.0, step=0.1, key="trade_mult")
-        with sl2:
-            risk_mult  = st.slider("Risk Multiplier",  0.1, 5.0, step=0.1, key="risk_mult")
-        with sl3:
-            ae_adj     = st.slider("AE Adjustment",   -20.0,   20.0, step=0.5, key="ae_adj")
-
+        # Row 1 (3 sliders)
+        r1c1, r1c2, r1c3 = st.columns(3)
+        with r1c1:
+            st.slider("Origin GDP per capita", -50, 100, value=0, step=1, key="ln_reporter_gdp_per_capita")
         
+        with r1c2:
+            st.slider("Partner GDP per capita", -50, 100, value=0, step=1, key="ln_partner_gdp_per_capita")
+            
+        with r1c3:
+            st.slider("Trade Distance", -50, 100, value=0, step=1, key="ln_distcap")
+
+        # Row 2 (2 sliders)
+        r2c1, r2c2, r2c3 = st.columns(3)
+
+        with r2c1:
+            st.slider("Tariff", -50, 100, value=0, step=1, key="ln_tariff")
+
+        with r2c2:
+            st.slider("Political Distance", -50, 100, value=0, step=1, key="ln_ideal_point_distance")
+        
+        with r2c3:
+            st.empty() # consistent layout of sliders
+
+        # For easier interpretation for user
+        st.markdown("""
+        **How to interpret:**
+
+        - `+10%` → 10% increase in the explanatory variable 
+        - `-20%` → 20% decrease in the explanatory variable 
+        - `0%` → no change  
+        """)
+
+        # Compute log-change using coefficients
+        log_effect = 0
+
+        for var in policy_vars:
+            pct_change = st.session_state[var]
+
+            # convert to multiplier
+            multiplier = 1 + pct_change / 100
+
+            # safety (avoid log(0))
+            multiplier = max(multiplier, 1e-6)
+
+            coef = coef_map.get(var, 0)
+
+            log_effect += coef * np.log(multiplier)
+
+        # Convert to % change
+        trade_effect = (np.exp(log_effect) - 1) * 100
         
         if st.button("Launch New Policy", use_container_width=True):
+            # Convert display → raw
+            if policy_industry == "All":
+                policy_industry_raw = "All"
+            else:
+                policy_industry_raw = reverse_mapping.get(
+                    policy_industry,
+                    policy_industry)
+         
             st.session_state.policies.append({
                 "origin": policy_origin,
                 "country": policy_country,
                 "industry": policy_industry,
-                "trade_multiplier": trade_mult,
-                "risk_multiplier": risk_mult,
-                "ae_adjustment": ae_adj,
+                "industry_raw": policy_industry_raw,  # raw (for model)
+                "policy_vars": {var: st.session_state[var] for var in policy_vars},
+                "trade_effect": trade_effect
             })
             st.success(
                 f"✅ {len(st.session_state.policies)} "
@@ -1605,18 +1888,30 @@ with tab4:
                 col1, col2 = st.columns([5, 1])
 
                 with col1:
+                    origin_display = p['origin'] if p['origin'] is not None else "Unknown"
+
+                    changes = ", ".join([
+                        f"{k.replace('ln_', '').replace('_', ' ').title()}: {'+' if v > 0 else ''}{v}%"
+                        for k, v in p["policy_vars"].items() if v != 0
+                        ])
+                    if not changes:
+                        changes = "No changes"
+
                     st.markdown(f"""
-                    <div style="padding:10px; margin-bottom:8px; border-radius:8px;
-                                border:1px solid rgba(128,128,128,0.3);
-                                background-color:var(--secondary-background-color);">
-                        <b>{p['origin']}</b> → <b>{display_country}</b> | {p['industry']}{news_tag}<br>
-                        <span style="font-size:12px; color:gray;">
-                            Trade ×{p['trade_multiplier']} &nbsp;|&nbsp;
-                            Risk ×{p['risk_multiplier']} &nbsp;|&nbsp;
-                            AE {'+' if p['ae_adjustment'] >= 0 else ''}{p['ae_adjustment']}
-                        </span>
-                    </div>
-                """, unsafe_allow_html=True)
+                                <div style="padding:10px; margin-bottom:8px; border-radius:8px;
+                                    border:1px solid rgba(128,128,128,0.3);
+                                    background-color:var(--secondary-background-color);">
+                                <b>{origin_display}</b> → <b>{display_country}</b> | {p['industry']}{news_tag}<br>
+                                <span style="font-size:12px; color:gray;">
+                                {changes}
+                                </span>
+                                <br/>
+                                <span style="font-size:13px;">
+                                Estimated Export Trade Impact: 
+                                <b>{p['trade_effect']:+.2f}%</b>
+                                </span>
+                                </div>
+                                """, unsafe_allow_html=True)
 
                 with col2:
                     if st.button("❌", key=f"delete_policy_{i}"):
