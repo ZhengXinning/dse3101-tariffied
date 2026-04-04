@@ -1335,6 +1335,12 @@ with tab2:
     df_sim = apply_policies(df, st.session_state.policies, coef_map)
 
     #--------------------------------
+    # Active risk index indicator
+    #--------------------------------
+    if risk_col == "custom_risk_index":
+        st.info("Custom Risk Index active — rankings based on your selected indicators. Go to the Indicators tab to change selection.")
+
+    #--------------------------------
     # Multiselect trading partners
     #--------------------------------
 
@@ -1395,7 +1401,8 @@ with tab2:
     # User can override
     with col4:
         selected_countries = st.multiselect(
-            "Trading Partners", Clist, default=default_list
+            "Trading Partners", Clist, default=default_list,
+            key=f"selected_countries_{risk_col}_{origin}"
         )
             
     # -------------------------------
@@ -2034,6 +2041,7 @@ with tab2:
 with tab3:
     st.markdown("### Customise Risk Index Indicators")
     st.write("Create your own risk index by selecting which indicators to include in the calculation. You may observe how the risk index and partner rankings change in the Map & Charts tab.")
+    st.caption("Tip: With all indicators selected, rankings will look similar to the default index (both use the same inputs). Uncheck some indicators to see different results.")
 
     user_selections = {}
 
