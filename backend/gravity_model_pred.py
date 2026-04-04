@@ -43,7 +43,7 @@ if __name__ == "__main__":
     df_gravity['predicted_exportFlow'] = np.exp(predicted_ln_exportflow)
 
     # Ratio of predicted to actual export flow
-    df_gravity['tradeRatio'] = df_gravity['predicted_exportFlow'] / df_gravity['exportFlow']
+    df_gravity['tradeRatio'] = df_gravity['exportFlow']/df_gravity['predicted_exportFlow']
 
     # Display results
     print(df_gravity)
