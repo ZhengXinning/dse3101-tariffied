@@ -6,6 +6,7 @@ import os
 if __name__ == "__main__":
     # Load the trained gravity model (model.fit())
     comb_model = sm.load('./backend/gravity_models/combined_model.pickle')
+    comb_model_base = sm.load('./backend/gravity_models/combined_model_base.pickle')
 
     # Load the combined dataframe
     df_comb = pd.read_parquet('./backend/temp_df/df_comb.parquet')
@@ -38,15 +39,19 @@ if __name__ == "__main__":
 
     # Predict the log of export flow
     predicted_ln_exportflow = comb_model.predict(df_gravity, True)
+    predicted_ln_exportflow_base = comb_model_base.predict(df_gravity, True)
 
     # Exponentiate to get the predicted actual export flow
-    df_gravity['predicted_exportFlow'] = np.exp(predicted_ln_exportflow)
+    df_gravity['predicted_exportFlow_geoPol'] = np.exp(predicted_ln_exportflow)
+    df_gravity['predicted_exportFlow_base'] = np.exp(predicted_ln_exportflow_base)
 
-    # Ratio of predicted to actual export flow
-    df_gravity['tradeRatio'] = df_gravity['exportFlow']/df_gravity['predicted_exportFlow']
+    # Ratio of actual to predicted export flow
+    df_gravity['tradeRatio'] = df_gravity['exportFlow']/df_gravity['predicted_exportFlow_geoPol']
 
     # Display results
     print(df_gravity)
+    print(df_gravity.columns)
+    print(df_gravity.isna().sum())
 
     """
     df_gravity

@@ -95,7 +95,7 @@ if __name__ == "__main__":
                         'partnerCode', 'partnerISO', 'partnerDesc', 'partnerRegion',
                         'partnerGdp', 'partnerPopulation', 'partner_gdp/capita',
                         'partnerlat', 'partnerlong',
-                        'exportFlow', 'importFlow', 'totalFlow', 'predicted_exportFlow', 'tradeRatio', 
+                        'exportFlow', 'importFlow', 'totalFlow', 'predicted_exportFlow_base', 'predicted_exportFlow_geoPol', 'tradeRatio', 
                         'reporterTradePctGdp', 'partnerTradePctGdp',
                         'transptCost_weighted', 'fxChange_weighted',
                         'IdealPointDistance_weighted', 'stateVisits_weighted',
