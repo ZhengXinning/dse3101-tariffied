@@ -773,11 +773,6 @@ def apply_policies(df, policies, coef_map):
         df_sim["exports_vol"] / df_sim["predicted_exports"]
     )
 
-    # Trade as % of GDP
-    df_sim["trade_pct_gdp"] = (
-        df_sim["exports_vol"] / df_sim["origin_gdp"]
-    )
-
     # Weights 
     df_sim["total_export"] = df_sim.groupby(
         ["origin", "country"]
@@ -789,6 +784,11 @@ def apply_policies(df, policies, coef_map):
     # Recompute trade_value
     df_sim["trade_value"] = (
         df_sim["exports_vol"] + df_sim["imports_vol"]
+    )
+
+    # Trade as % of GDP
+    df_sim["trade_pct_gdp"] = (
+        df_sim["trade_value"] / df_sim["origin_gdp"]
     )
 
     return df_sim
