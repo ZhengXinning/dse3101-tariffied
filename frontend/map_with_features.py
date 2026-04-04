@@ -1084,7 +1084,7 @@ def apply_policies(df, policies, coef_map):
     )
 
     # Trade as % of GDP
-    df_sim["trade_pct_gdp"] = (
+    df_sim["origin_trade_pct_gdp"] = (
         df_sim["trade_value"] / df_sim["origin_gdp"]
     )
 
@@ -1445,9 +1445,9 @@ with tab2:
     country_totals = (
         df_filtered.groupby("country")
         .apply(lambda x: pd.Series({
-            "imports_pct": ((x["imports_vol"] * x["trade_pct_gdp"]) / x["trade_value"]).sum() * 100,
-            "exports_pct": ((x["exports_vol"] * x["trade_pct_gdp"]) / x["trade_value"]).sum() * 100,
-            "arrow_width_factor": x["trade_pct_gdp"].sum()
+            "imports_pct": ((x["imports_vol"] * x["origin_trade_pct_gdp"]) / x["trade_value"]).sum() * 100,
+            "exports_pct": ((x["exports_vol"] * x["origin_trade_pct_gdp"]) / x["trade_value"]).sum() * 100,
+            "arrow_width_factor": x["origin_trade_pct_gdp"].sum()
         }))
         .to_dict("index")
     )
