@@ -499,7 +499,7 @@ df = df.rename(columns={
      "exportFlow": "exports_vol",
      "importFlow": "imports_vol",
      "totalFlow": "trade_value",
-     "predicted_exportFlow": "predicted_exports",
+     "predicted_exportFlow_geoPol": "predicted_exports",
      "tradeRatio": "actual_vs_expected",
      "reporterTradePctGdp": "origin_trade_pct_gdp",
      "partnerTradePctGdp": "trade_pct_gdp",
@@ -1042,28 +1042,21 @@ def apply_policies(df, policies, coef_map):
 
         for policy in policies:
 
-            condition = (
-                (row["origin"] == policy["origin"]) and
-                (row["country"] == policy["country"])
-            )
+            # Only check Origin and Country
+            # Ensures the effect applies to EVERY industry row for this pair
+            if row["origin"] == policy["origin"] and row["country"] == policy["country"]:
 
-            if policy["industry"] != "All":
-                condition = condition and (row["industry"] == policy["industry"])
+                for var, pct_change in policy["policy_vars"].items():
 
-            if not condition:
-                continue
+                    coef = coef_map.get(var, 0)
 
-            for var, pct_change in policy["policy_vars"].items():
+                    multiplier = 1 + pct_change / 100
+                    multiplier = max(multiplier, 1e-6)
 
-                coef = coef_map.get(var, 0)
+                    total_log_effect += coef * np.log(multiplier)
 
-                multiplier = 1 + pct_change / 100
-                multiplier = max(multiplier, 1e-6)
-
-                total_log_effect += coef * np.log(multiplier)
-
-        # apply once
-        df_sim.loc[i, "exports_vol"] *= np.exp(total_log_effect)
+        # apply the combined effect of all matching policies to this industry row
+        df_sim.at[i, "exports_vol"] *= np.exp(total_log_effect)
 
     # Recompute actual vs expected
     df_sim["actual_vs_expected"] = (
@@ -1522,11 +1515,11 @@ with tab2:
         display_country = row["country_display"]
         endLA = row["latitude"]
         endLO = row["longitude"]
-        message=""
+        risk_message=""
         if row[risk_col]>0:
-            message=""
+            risk_message=""
         else:
-            message="No risk data found"
+            risk_message="No risk data found"
         # Weighted AE
         total_weight = country_data["industry_weight"].sum()
         if total_weight > 0:
@@ -1554,6 +1547,10 @@ with tab2:
             flag_url = ""
 
         # Industry info section for popup
+
+        # Initialize trade message as empty
+        trade_message = ""
+
         # Case 1: "All" selected → show top 3 industries
         if "All" in selected_industries:
             country_industry_vols = (
@@ -1562,10 +1559,17 @@ with tab2:
                 .sort_values(ascending=False)
                 .head(3)
             )
-            top3_rows = "".join([
-                f"<div style='margin-left:8px;'>• {ind}: {vol:,.0f}</div>"
-                for ind, vol in country_industry_vols.items()
-            ])
+
+            # Check if there's actually any data in the resulting series
+            if country_industry_vols.empty or country_industry_vols.sum() == 0:
+                trade_message = "No trade data found"
+                top3_rows = ""
+
+            else: 
+                top3_rows = "".join([
+                    f"<div style='margin-left:8px;'>• {ind}: {vol:,.0f}</div>"
+                    for ind, vol in country_industry_vols.items()
+                ])
             industry_html = f"<div style='margin-top:4px;'><b>Top 3 Industries (by Trade Value):</b></div>{top3_rows}"
 
         # Case 2: Specific industries selected → show those industries    
@@ -1575,6 +1579,10 @@ with tab2:
                 .groupby("industry")["trade_value"].sum()
                 .sort_values(ascending=False)
             )
+
+            # Check if these specific industries have any data
+            if all_industry_vols.empty or all_industry_vols.sum() == 0:
+                trade_message = "No trade data found"
 
             rows = []
             for ind in selected_industries:
@@ -1588,7 +1596,7 @@ with tab2:
                 f"<div style='margin-top:4px;'><b>Selected Industries:</b></div>"
                 + "".join(rows)
                 )
-            
+               
         popup_html = f"""
         <div style="font-family: Arial; font-size: 12px; padding: 8px;">
             <div style="display:flex; align-items:center; gap:8px;">
@@ -1600,11 +1608,12 @@ with tab2:
 
             <div>Rank: <b>#{rank}</b></div>
             <div>Risk Index: <b>{row[risk_col]:.2f}</b></div>
-            <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{message:.30s}</b></div>
+            <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{risk_message:.30s}</b></div>
             <div>Actual over Expected: <b>{weighted_ae:.0f}%</b></div>
 
             <div>Imports: <b>{imports_vol:.2f}%</b></div>
             <div>Exports: <b>{exports_vol:.2f}%</b></div>
+            <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{trade_message:.30s}</b></div>
             {industry_html}
         </div>
         """
@@ -1641,11 +1650,12 @@ with tab2:
             "Country": row["country_display"],
             "ISO3": row["partner_iso"],
             "Risk Index": row[risk_col],
-            "Actual vs Expected": weighted_ae,
+            "Actual over Expected": weighted_ae,
             "Imports %": imports_vol,
             "Exports %": exports_vol,
             "industry_html": industry_html,
-            "message" : message
+            "risk_message" : risk_message,
+            "trade_message" : trade_message
 
         })
 
@@ -1804,10 +1814,11 @@ with tab2:
                     </div>
                     <div style="color: gray; font-size:15px;margin-bottom: 5px;"> Rank: #{data['Rank']}</div>
                     <div style="margin-bottom: 3px;"> Risk Index: <span style="color:{text_color};"><b>{data['Risk Index']:.2f}</span></b></div>
-                    <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{data['message']:.30s}</b></div>
-                    <div style="margin-bottom: 3px;"> Actual vs Expected: <b>{data['Actual vs Expected']:.0f}%</b></div>
+                    <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{data['risk_message']:.30s}</b></div>
+                    <div style="margin-bottom: 3px;"> Actual over Expected: <b>{data['Actual over Expected']:.0f}%</b></div>
                     <div style="margin-bottom: 3px;"> Imports: {data['Imports %']:.2f}%</div>
                     <div style="margin-bottom: 3px;">Exports: {data['Exports %']:.2f}%</div>
+                    <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{data['trade_message']:.30s}</b></div>
                     {data['industry_html']}
                 </div>
             """, unsafe_allow_html=True)
@@ -2063,10 +2074,10 @@ with tab4:
     
     st.markdown("### Trade Policy Simulation")
     st.write("""
-    Test how changes in trade conditions affect flows between countries by **adjusting the policy sliders (e.g. tariffs, GDP per capita, distance), and launching a scenario**. You can add multiple policies to see combined effects.
+    Test how changes in trade conditions affect flows between countries by **adjusting the policy sliders (e.g. tariffs, GDP per capita, trade distance), and launching a scenario**. You can add multiple policies to see combined effects.
     The % impact on export trade will be estimated based on the modified gravity model.
 
-    Results will update in the Map & Charts tab, where you can compare updates to trade, export as % of GDP, and Actual over Expected flows. 
+    Results will update in the Map & Charts tab, where you can compare updates to trade, export as % of GDP, and Actual over Expected export flows. 
     """)
     if st.session_state.last_news_policy:
         news_title = st.session_state.last_news_policy
@@ -2095,17 +2106,7 @@ with tab4:
             policy_country_display  = st.selectbox("Partner Country", sorted(df["country_display"].unique()), key="policy_country")
             # Convert back to actual country name
             policy_country = display_to_country[policy_country_display]
-        # Industry multiselect
-        policy_industry = st.multiselect(
-            "Industry",
-            options=industries,
-            default=["All"], key="policy_industry")
-        
-        # Show friendly message and stop the script
-        if not policy_industry:
-           st.warning("Please select at least one industry.")
-           st.stop()
-        
+                
         st.markdown("##### Policy Levers")
 
         # Row 1 (3 sliders)
@@ -2164,14 +2165,14 @@ with tab4:
             st.session_state.policies.append({
                 "origin": policy_origin,
                 "country": policy_country,
-                "industry": policy_industry,
+                "industry": ["All"],
                 "policy_vars": {var: st.session_state[var] for var in policy_vars},
                 "trade_effect": trade_effect
             })
             st.success(
-                f"✅ {len(st.session_state.policies)} "
-                f"{'policy' if len(st.session_state.policies) == 1 else 'policies'} currently active — "
-                "refer to the Map & Charts tab to view the changes."
+                f"{len(st.session_state.policies)} "
+                f"{'policy' if len(st.session_state.policies) == 1 else 'policies'} currently active. "
+                "Refer to the Map & Charts tab to view the changes."
             )
 
     with col_b:
@@ -2185,7 +2186,7 @@ with tab4:
                 display_country = country_to_display.get(p["country"], p["country"])
                 news_tag = " 📰" if p.get("from_news") else ""
 
-                col1, col2 = st.columns([5, 1])
+                col1, col2 = st.columns([10, 1])
 
                 with col1:
                     origin_display = p['origin'] if p['origin'] is not None else "Unknown"
@@ -2201,7 +2202,7 @@ with tab4:
                                 <div style="padding:10px; margin-bottom:8px; border-radius:8px;
                                     border:1px solid rgba(128,128,128,0.3);
                                     background-color:var(--secondary-background-color);">
-                                <b>{origin_display}</b> → <b>{display_country}</b> | {p['industry']}{news_tag}<br>
+                                <b>{origin_display}</b> → <b>{display_country}</b>{news_tag}<br>
                                 <span style="font-size:12px; color:gray;">
                                 {changes}
                                 </span>
@@ -2214,7 +2215,7 @@ with tab4:
                                 """, unsafe_allow_html=True)
 
                 with col2:
-                    if st.button("❌", key=f"delete_policy_{i}"):
+                    if st.button("✕", key=f"delete_policy_{i}", help="Remove policy"):
                         st.session_state.policies.pop(i)
                         st.rerun()
 
