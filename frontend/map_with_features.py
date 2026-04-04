@@ -897,16 +897,16 @@ with tab1:
         """
         - Customise Risk Index  
         - Select relevant indicators  
-        - Observe ranking changes  
+        - Observe ranking changes in Map & Charts 
         """, "#7ED6A7"), unsafe_allow_html=True)
 
     with col3:
         st.markdown(info_card("Trade Policies",
         """
-        - Simulate trade policies by adjusting sliders
-        - **Trade multiplier:** Scales trade volume 
-        - **Risk multiplier:** Scales risk index 
-        - **Actual vs Expected adjustment:** Adds to the ratio
+        - Simulate trade scenarios by adjusting policy sliders
+        - Select % changes in trade variables 
+        - Estimate % change in export trade flows
+        - Observe policy effects in Map & Charts
         """, "#C6A0FF"), unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
@@ -932,7 +932,7 @@ with tab1:
     This application presents three measures of trade volumes.
     
     - **Actual Trade Volume:** The observed total value (in USD) of real-world trade between countries.
-    - **Baseline Trade Volume:** The predicted trading volume between two countries based on the baseline gravity model using GDP per capita, population, geopolitical distance and export tariffs, excluding geopolitical distance.
+    - **Baseline Trade Volume:** The predicted trading volume between two countries based on the baseline gravity model using GDP per capita, population, geographical distance and export tariffs, excluding geopolitical distance.
     - **Expected Trade Volume:** The predicted trading volume between two countries based on the modified gravity model, including geopolitical distance along with the other determinants in the baseline model.
     """, unsafe_allow_html=True)
     
@@ -1026,14 +1026,14 @@ with tab2:
             <details id="legend-details" open>
                 <summary style="cursor:pointer;font-weight:bold;user-select:none;
                                 display:flex;justify-content:space-between;align-items:center;gap:16px;">
-                    <span>Legend / Info</span><span class="legend-arrow" style="font-size:11px;"></span>
+                    <span>Legend (Map)</span><span class="legend-arrow" style="font-size:11px;"></span>
                 </summary>
                 <hr style="margin:6px 0;">
                 <div><b>Risk Index:</b> 0–100 (lower = better)</div>
                 <div><b>Marker Color:</b> Green = low risk, Yellow = medium risk, Red = high risk</div>
-                <div><b>Actual vs Expected Trade:</b> &lt;100% = trade opportunities present, &gt;100% = potentially overtrading</div>
+                <div><b>Actual over Expected Export Trade:</b> &lt;100% = untapped trade opportunities, &gt;100% = successful specialisation but may suggest neglect in other markets</div>
                 <div><b>Arrow Width:</b> Proportional to trade with Origin Country (% of OC GDP)</div>
-                <div>Click on markers for more trade information</div>
+                <div>Click on markers for more information</div>
             </details>
         </div>
         """,
@@ -1304,7 +1304,7 @@ with tab2:
             <div>Rank: <b>#{rank}</b></div>
             <div>Risk Index: <b>{row[risk_col]:.2f}</b></div>
             <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{message:.30s}</b></div>
-            <div>Actual vs Expected: <b>{weighted_ae:.0f}%</b></div>
+            <div>Actual over Expected: <b>{weighted_ae:.0f}%</b></div>
 
             <div>Imports: <b>{imports_vol:.2f}%</b></div>
             <div>Exports: <b>{exports_vol:.2f}%</b></div>
@@ -1522,7 +1522,7 @@ with tab2:
     with st.expander("", expanded=True):        
         st.markdown("### Trade Insights")
         st.markdown(
-            '<div class="subtitle"> Scatter Plot of risk vs. trade volume by partner country — points in the green quadrant signal untapped low-risk opportunities, red quadrant warrants caution</div>',
+            '<div class="subtitle"> Scatter Plot of risk vs trade volume by partner country — points in the green quadrant signal untapped low-risk opportunities, red quadrant warrants caution</div>',
             unsafe_allow_html=True
         )
 
@@ -1765,8 +1765,12 @@ for var in policy_vars:
 with tab4:
     
     st.markdown("### Trade Policy Simulation")
-    st.write("Simulate the effect of trade policies on risk index, trade volume, and actual vs expected trade. Policies applied here will update the Map & Charts tab.")
+    st.write("""
+    Test how changes in trade conditions affect flows between countries by **adjusting the policy sliders (e.g. tariffs, GDP per capita, distance), and launching a scenario**. You can add multiple policies to see combined effects.
+    The % impact on export trade will be estimated based on the modified gravity model.
 
+    Results will update in the Map & Charts tab, where you can compare updates to trade, export as % of GDP, and Actual over Expected flows. 
+    """)
     if st.session_state.last_news_policy:
         news_title = st.session_state.last_news_policy
         short_title = news_title[:60] + "…" if len(news_title) > 60 else news_title
@@ -1794,8 +1798,17 @@ with tab4:
             policy_country_display  = st.selectbox("Partner Country", sorted(df["country_display"].unique()), key="policy_country")
             # Convert back to actual country name
             policy_country = display_to_country[policy_country_display]
-        policy_industry = st.selectbox("Industry", ["All"] + sorted(df["industry"].unique()), key="policy_industry")
-
+        # Industry multiselect
+        policy_industry = st.multiselect(
+            "Industry",
+            options=industries,
+            default=["All"], key="policy_industry")
+        
+        # Show friendly message and stop the script
+        if not policy_industry:
+           st.warning("Please select at least one industry.")
+           st.stop()
+        
         st.markdown("##### Policy Levers")
 
         # Row 1 (3 sliders)
@@ -1813,10 +1826,10 @@ with tab4:
         r2c1, r2c2, r2c3 = st.columns(3)
 
         with r2c1:
-            st.slider("Tariff", -50, 100, value=0, step=1, key="ln_tariff")
+            st.slider("Export Tariffs", -50, 100, value=0, step=1, key="ln_tariff")
 
         with r2c2:
-            st.slider("Political Distance", -50, 100, value=0, step=1, key="ln_ideal_point_distance")
+            st.slider("Geopolitical Distance", -50, 100, value=0, step=1, key="ln_ideal_point_distance")
         
         with r2c3:
             st.empty() # consistent layout of sliders
@@ -1825,8 +1838,8 @@ with tab4:
         st.markdown("""
         **How to interpret:**
 
-        - `+10%` → 10% increase in the explanatory variable 
-        - `-20%` → 20% decrease in the explanatory variable 
+        - `+10%` → 10% increase in explanatory variable 
+        - `-20%` → 20% decrease in explanatory variable 
         - `0%` → no change  
         """)
 
@@ -1850,26 +1863,18 @@ with tab4:
         trade_effect = (np.exp(log_effect) - 1) * 100
         
         if st.button("Launch New Policy", use_container_width=True):
-            # Convert display → raw
-            if policy_industry == "All":
-                policy_industry_raw = "All"
-            else:
-                policy_industry_raw = reverse_mapping.get(
-                    policy_industry,
-                    policy_industry)
-         
+                    
             st.session_state.policies.append({
                 "origin": policy_origin,
                 "country": policy_country,
                 "industry": policy_industry,
-                "industry_raw": policy_industry_raw,  # raw (for model)
                 "policy_vars": {var: st.session_state[var] for var in policy_vars},
                 "trade_effect": trade_effect
             })
             st.success(
                 f"✅ {len(st.session_state.policies)} "
                 f"{'policy' if len(st.session_state.policies) == 1 else 'policies'} currently active — "
-                "refer to the **Map & Charts** tab to view the changes."
+                "refer to the Map & Charts tab to view the changes."
             )
 
     with col_b:
