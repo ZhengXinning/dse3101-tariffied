@@ -1045,21 +1045,7 @@ def apply_policies(df, policies, coef_map):
             # Only check Origin and Country
             # Ensures the effect applies to EVERY industry row for this pair
             if row["origin"] == policy["origin"] and row["country"] == policy["country"]:
-
-<<<<<<< HEAD
-<<<<<<< HEAD
                 for var, pct_change in policy["policy_vars"].items():
-=======
-            if policy["industry"] != "All":
-                condition &= (row["industry"] == policy["industry"])
->>>>>>> aefc783 (Fix bug in trade policy tab)
-=======
-            industry = policy["industry"]
-            if isinstance(industry, str):
-                industry = [industry]
-            if "All" not in industry:
-                condition &= (row["industry"] in industry)
->>>>>>> b8434cf (fix bug in trade policy simulation)
 
                     coef = coef_map.get(var, 0)
 
