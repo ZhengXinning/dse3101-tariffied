@@ -1046,7 +1046,12 @@ def apply_policies(df, policies, coef_map):
             # Ensures the effect applies to EVERY industry row for this pair
             if row["origin"] == policy["origin"] and row["country"] == policy["country"]:
 
+<<<<<<< HEAD
                 for var, pct_change in policy["policy_vars"].items():
+=======
+            if policy["industry"] != "All":
+                condition &= (row["industry"] == policy["industry"])
+>>>>>>> aefc783 (Fix bug in trade policy tab)
 
                     coef = coef_map.get(var, 0)
 
