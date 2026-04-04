@@ -500,6 +500,7 @@ df = df.rename(columns={
      "importFlow": "imports_vol",
      "totalFlow": "trade_value",
      "predicted_exportFlow_geoPol": "predicted_exports",
+     "predicted_exportFlow_base": "baseline_exports",
      "tradeRatio": "actual_vs_expected",
      "reporterTradePctGdp": "origin_trade_pct_gdp",
      "partnerTradePctGdp": "trade_pct_gdp",
@@ -1215,16 +1216,53 @@ with tab1:
     # Gravity Model info
     st.markdown("### The Gravity Model of Trade")
     st.markdown("""
-    Inspired by Newton’s law of gravitation, the gravity model estimates trade flows between two countries based on their respective economic sizes and distance between them. In its simplest theoretical form, the model relates trade volume to the Gross Domestic Product (GDP), geographical distance and an error term. \n
+    Inspired by Newton’s law of gravitation, the gravity model estimates trade flows from one country to another based on their respective economic sizes and distance between them. In its simplest theoretical form, the model relates trade volume to the Gross Domestic Product (GDP), geographical distance and an error term. \n
     In this application, the baseline gravity model incorporates additional determinants of trade relationships, including population and import tariffs. These factors enhance the gravity model to highlight the impact of geopolitical tensions on bilateral trade. \n
     Our modified gravity model focuses on geopolitical alignment, which we quantify based on the voting patterns in the United Nations General Assembly (UNGA). We employ ideal point estimates to derive the ideal point distance between countries, where a smaller distance indicates closer geopolitical alignment.\n  
-    This application presents three measures of trade volumes.
+    This application presents three measures of export volumes.
     
-    - **Actual Trade Volume:** The observed total value (in USD) of real-world trade between countries.
-    - **Baseline Trade Volume:** The predicted trading volume between two countries based on the baseline gravity model using GDP per capita, population, geographical distance and export tariffs, excluding geopolitical distance.
-    - **Expected Trade Volume:** The predicted trading volume between two countries based on the modified gravity model, including geopolitical distance along with the other determinants in the baseline model.
+    - **Actual Trade Volume:** The observed total value (in USD) of real-world export trade from one country to another.
+    - **Baseline Trade Volume:** The predicted export trading volume from one country to another based on the baseline gravity model using GDP per capita, population, geographical distance and export tariffs, excluding geopolitical distance.
+    - **Expected Trade Volume:** The predicted export trading volume from one country to another based on the modified gravity model, including geopolitical distance along with the other determinants in the baseline model.
     """, unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+
+    # Grouped Bar Chart
+    # preparing data
+    agg_tradevol = (
+        df.groupby("origin")[["exports_vol", "baseline_exports", "predicted_exports"]]
+        .sum()
+        .reset_index()
+        .melt(id_vars = "origin", value_vars = ["exports_vol", "baseline_exports", "predicted_exports"],
+              var_name = "type", value_name = "value")
+    )
+
+    # rename labels
+    agg_tradevol["type"] = agg_tradevol["type"].map({
+        "exports_vol": "Actual",
+        "baseline_exports": "Baseline",
+        "predicted_exports": "Expected"
+    })
+
+    bar = px.bar(agg_tradevol, x="origin", y="value", color="type", barmode = "group",
+                title = "Visual Comparison of the 3 Types of Export Volumes",
+                labels = {"origin": "Origin Country", "value": "Total Export Volume (USD)", "type": "Trade Volume Type"},
+                color_discrete_map={
+                    "Actual": "#7DA8FF",
+                    "Baseline": "#F9D97A",
+                    "Expected": "#C6A0FF"
+                }
+    )
     
+    bar.update_layout(
+        margin = dict(l=0, r=0, t=60, b=20), 
+        legend=dict(title_text = None, orientation="h", yanchor="bottom", y=0.91, x=0.465, xanchor="center", font=dict(size=15), itemwidth=50),
+        title = dict(font_size=20, x=0.5, xanchor="center", y=0.97, yanchor="top")
+    )
+
+    st.plotly_chart(bar, use_container_width=True)
+
     # Risk Index info
     st.markdown("### The Risk Index")
     st.markdown("""
