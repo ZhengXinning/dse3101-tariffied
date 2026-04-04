@@ -1048,7 +1048,7 @@ def apply_policies(df, policies, coef_map):
             )
 
             if policy["industry"] != "All":
-                condition &= (df_sim["industry"] == policy["industry"])
+                condition = condition and (row["industry"] == policy["industry"])
 
             if not condition:
                 continue
