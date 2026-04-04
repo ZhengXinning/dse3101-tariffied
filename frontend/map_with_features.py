@@ -13,6 +13,7 @@ from folium import DivIcon, Tooltip
 from folium.features import GeoJsonTooltip
 
 import json
+import re
 import pycountry
 import plotly.express as px
 import feedparser
@@ -79,36 +80,239 @@ def get_sentiment(text):
     return "neutral"
 
 
-# Keyword → industry name (must match dataset values exactly)
+# Keyword → industry display name (must match values in industry_mapping exactly)
 INDUSTRY_KEYWORD_MAP = {
-    "chip": "Electronics", "semiconductor": "Electronics", "electronic": "Electronics",
-    "tech": "Electronics", "circuit": "Electronics",
-    "oil": "Energy", "gas": "Energy", "fuel": "Energy", "opec": "Energy", "lng": "Energy",
-    "energy": "Energy", "coal": "Energy", "nuclear": "Energy",
-    "auto": "Automotive", "vehicle": "Automotive", "car": "Automotive", "ev ": "Automotive",
-    "pharmaceutical": "Pharmaceuticals", "drug": "Pharmaceuticals",
-    "vaccine": "Pharmaceuticals", "medicine": "Pharmaceuticals",
-    "chemical": "Chemicals", "fertilizer": "Chemicals",
-    "agriculture": "Agriculture", "food": "Agriculture", "grain": "Agriculture",
-    "wheat": "Agriculture", "soy": "Agriculture", "rice": "Agriculture", "corn": "Agriculture",
-    "machinery": "Machinery", "equipment": "Machinery", "industrial": "Machinery",
-    "financial": "Financial Services", "banking": "Financial Services",
-    "insurance": "Financial Services", "fintech": "Financial Services",
+    # Electrical Machinery & Electronics
+    "chip": "Electrical Machinery & Electronics",
+    "semiconductor": "Electrical Machinery & Electronics",
+    "electronic": "Electrical Machinery & Electronics",
+    "circuit": "Electrical Machinery & Electronics",
+    "computer": "Electrical Machinery & Electronics",
+    "battery": "Electrical Machinery & Electronics",
+    "data center": "Electrical Machinery & Electronics",
+    # Mineral Fuels & Oils
+    "oil": "Mineral Fuels & Oils",
+    "gas": "Mineral Fuels & Oils",
+    "fuel": "Mineral Fuels & Oils",
+    "opec": "Mineral Fuels & Oils",
+    "lng": "Mineral Fuels & Oils",
+    "crude": "Mineral Fuels & Oils",
+    "petroleum": "Mineral Fuels & Oils",
+    "coal": "Mineral Fuels & Oils",
+    "refinery": "Mineral Fuels & Oils",
+    "energy": "Mineral Fuels & Oils",
+    # Vehicles & Parts
+    "vehicle": "Vehicles & Parts",
+    "automobile": "Vehicles & Parts",
+    "automotive": "Vehicles & Parts",
+    "electric vehicle": "Vehicles & Parts",
+    "truck": "Vehicles & Parts",
+    # Pharmaceuticals
+    "pharmaceutical": "Pharmaceuticals",
+    "drug": "Pharmaceuticals",
+    "vaccine": "Pharmaceuticals",
+    "medicine": "Pharmaceuticals",
+    "biotech": "Pharmaceuticals",
+    # Organic Chemicals
+    "organic chemical": "Organic Chemicals",
+    "petrochemical": "Organic Chemicals",
+    # Inorganic Chemicals
+    "inorganic chemical": "Inorganic Chemicals",
+    "rare earth": "Inorganic Chemicals",
+    # Fertilizers
+    "fertilizer": "Fertilizers",
+    "potash": "Fertilizers",
+    "phosphate": "Fertilizers",
+    # Machinery & Boilers
+    "machinery": "Machinery & Boilers",
+    "boiler": "Machinery & Boilers",
+    "turbine": "Machinery & Boilers",
+    "industrial equipment": "Machinery & Boilers",
+    # Nuclear Reactors & Machinery
+    "nuclear reactor": "Nuclear Reactors & Machinery",
+    "nuclear plant": "Nuclear Reactors & Machinery",
+    # Optical & Medical Instruments
+    "medical device": "Optical & Medical Instruments",
+    "optical instrument": "Optical & Medical Instruments",
+    "surgical": "Optical & Medical Instruments",
+    # Aircraft & Spacecraft
+    "aircraft": "Aircraft & Spacecraft",
+    "aerospace": "Aircraft & Spacecraft",
+    "aviation": "Aircraft & Spacecraft",
+    "spacecraft": "Aircraft & Spacecraft",
+    "satellite": "Aircraft & Spacecraft",
+    "boeing": "Aircraft & Spacecraft",
+    "airbus": "Aircraft & Spacecraft",
+    # Ships & Boats
+    "ship": "Ships & Boats",
+    "vessel": "Ships & Boats",
+    "maritime": "Ships & Boats",
+    "naval": "Ships & Boats",
+    "shipbuilding": "Ships & Boats",
+    # Railway Equipment
+    "railway": "Railway Equipment",
+    "railroad": "Railway Equipment",
+    "locomotive": "Railway Equipment",
+    # Iron & Steel
+    "steel": "Iron & Steel",
+    "iron ore": "Iron & Steel",
+    # Aluminium
+    "aluminium": "Aluminium",
+    "aluminum": "Aluminium",
+    # Copper
+    "copper": "Copper",
+    # Nickel
+    "nickel": "Nickel",
+    # Rubber
+    "rubber": "Rubber",
+    # Plastics
+    "plastic": "Plastics",
+    "polymer": "Plastics",
+    # Jewellery & Precious Metals
+    "gold": "Jewellery & Precious Metals",
+    "silver": "Jewellery & Precious Metals",
+    "jewellery": "Jewellery & Precious Metals",
+    "jewelry": "Jewellery & Precious Metals",
+    "precious metal": "Jewellery & Precious Metals",
+    "diamond": "Jewellery & Precious Metals",
+    # Arms & Ammunition
+    "ammunition": "Arms & Ammunition",
+    "weapons": "Arms & Ammunition",
+    "defence export": "Arms & Ammunition",
+    "defense export": "Arms & Ammunition",
+    # Cereals
+    "wheat": "Cereals",
+    "rice": "Cereals",
+    "corn": "Cereals",
+    "grain": "Cereals",
+    "cereal": "Cereals",
+    # Oil Seeds & Grains
+    "soybean": "Oil Seeds & Grains",
+    "soy": "Oil Seeds & Grains",
+    "palm oil": "Oil Seeds & Grains",
+    "oilseed": "Oil Seeds & Grains",
+    # Meat & Offal
+    "beef": "Meat & Offal",
+    "pork": "Meat & Offal",
+    "poultry": "Meat & Offal",
+    "meat": "Meat & Offal",
+    # Fish & Seafood
+    "fish": "Fish & Seafood",
+    "seafood": "Fish & Seafood",
+    "shrimp": "Fish & Seafood",
+    # Sugar & Confectionery
+    "sugar": "Sugar & Confectionery",
+    # Coffee, Tea & Spices
+    "coffee": "Coffee, Tea & Spices",
+    "spice": "Coffee, Tea & Spices",
+    # Cotton
+    "cotton": "Cotton",
+    # Apparel & Clothing
+    "textile": "Apparel & Clothing",
+    "apparel": "Apparel & Clothing",
+    "garment": "Apparel & Clothing",
+    "fashion": "Apparel & Clothing",
+    # Wood & Charcoal
+    "timber": "Wood & Charcoal",
+    "lumber": "Wood & Charcoal",
+    # Paper & Paperboard
+    "paper": "Paper & Paperboard",
+    # Wood Pulp & Waste Paper
+    "pulp": "Wood Pulp & Waste Paper",
+    # Tobacco
+    "tobacco": "Tobacco",
+    "cigarette": "Tobacco",
+    # Ores, Slag & Ash
+    "ore": "Ores, Slag & Ash",
+    "mining": "Ores, Slag & Ash",
+    "lithium": "Ores, Slag & Ash",
+    "cobalt": "Ores, Slag & Ash",
 }
+
+# Short-form aliases → exact dataset country name (verified against df["origin"] and df["country"])
+COUNTRY_ALIASES = {
+    # USA  (dataset uses "USA" for both reporter and partner)
+    "us": "USA", "u.s.": "USA", "america": "USA", "american": "USA", "washington": "USA",
+    # United Kingdom  (dataset: "United Kingdom")
+    "uk": "United Kingdom", "u.k.": "United Kingdom", "britain": "United Kingdom",
+    "british": "United Kingdom", "england": "United Kingdom", "london": "United Kingdom",
+    # China  (dataset: "China" for origin; check partner)
+    "chinese": "China", "beijing": "China", "prc": "China",
+    # Russian Federation  (dataset: "Russian Federation", not "Russia")
+    "russia": "Russian Federation", "russian": "Russian Federation",
+    "moscow": "Russian Federation", "kremlin": "Russian Federation",
+    # Rep. of Korea  (dataset: "Rep. of Korea", not "South Korea")
+    "korea": "Rep. of Korea", "korean": "Rep. of Korea", "seoul": "Rep. of Korea",
+    "south korea": "Rep. of Korea",
+    # Saudi Arabia  (dataset: "Saudi Arabia")
+    "saudi": "Saudi Arabia", "riyadh": "Saudi Arabia",
+    # United Arab Emirates  (dataset: "United Arab Emirates")
+    "uae": "United Arab Emirates", "dubai": "United Arab Emirates",
+    # Japan  (dataset: "Japan" for origin)
+    "japanese": "Japan", "tokyo": "Japan",
+    # Germany  (dataset: "Germany" for origin)
+    "german": "Germany", "berlin": "Germany",
+    # France  (dataset: "France")
+    "french": "France", "paris": "France",
+    # India  (dataset: "India")
+    "indian": "India", "delhi": "India", "new delhi": "India",
+    # Brazil  (dataset: "Brazil")
+    "brazilian": "Brazil",
+    # Australia  (dataset: "Australia")
+    "australian": "Australia",
+    # Canada  (dataset: "Canada")
+    "canadian": "Canada", "ottawa": "Canada",
+    # Mexico  (dataset: "Mexico")
+    "mexican": "Mexico",
+    # Turkey  (dataset: "Turkey" or "Türkiye" — kept as "Turkey")
+    "turkish": "Turkey", "ankara": "Turkey",
+    # Indonesia  (dataset: "Indonesia")
+    "indonesian": "Indonesia", "jakarta": "Indonesia",
+    # Vietnam  (dataset: "Viet Nam" likely — add both)
+    "vietnamese": "Viet Nam", "hanoi": "Viet Nam", "vietnam": "Viet Nam",
+    # Thailand  (dataset: "Thailand")
+    "thai": "Thailand", "bangkok": "Thailand",
+    # Malaysia  (dataset: "Malaysia")
+    "malaysian": "Malaysia", "kuala lumpur": "Malaysia",
+    # Philippines  (dataset: "Philippines")
+    "philippine": "Philippines", "filipino": "Philippines", "manila": "Philippines",
+    # Myanmar  (dataset: "Myanmar")
+    "burma": "Myanmar", "burmese": "Myanmar",
+    # Pakistan  (dataset: "Pakistan")
+    "pakistani": "Pakistan", "islamabad": "Pakistan",
+    # Singapore  (dataset: "Singapore" for origin)
+    "singaporean": "Singapore",
+}
+
+def detect_countries_in_text(text, all_countries):
+    """
+    Detect dataset country names in text using both direct substring match and
+    alias/short-form match (with word boundaries for short aliases).
+    """
+    text_lower = text.lower()
+    found = set()
+    # Direct match
+    for c in all_countries:
+        if c.lower() in text_lower:
+            found.add(c)
+    # Alias match with word boundaries to avoid partial-word false positives
+    for alias, country in COUNTRY_ALIASES.items():
+        if country in all_countries:
+            if re.search(r'\b' + re.escape(alias) + r'\b', text_lower):
+                found.add(country)
+    return list(found)
 
 
 def extract_policy_from_article(title, all_origins, all_countries, all_industries):
     """Heuristically extract a trade policy from a news article title."""
     text = title.lower()
 
-    # --- Country detection ---
-    # Check for origin countries first (small list)
-    found_origins = [c for c in all_origins if c.lower() in text]
-    # Check for partner countries (also covers origins that are partners)
-    found_countries = [c for c in all_countries if c.lower() in text]
+    # --- Country detection (uses aliases for short forms like US, UK, etc.) ---
+    found_origins = [c for c in detect_countries_in_text(text, all_origins) if c in all_origins]
+    found_countries = detect_countries_in_text(text, all_countries)
 
     # Pick origin: prefer a found origin, else default to first origin
-    origin_result = found_origins[0] if found_origins else all_origins[0]
+    origin_result = found_origins[0]
 
     # Pick partner: first found country that differs from origin
     partner_candidates = [c for c in found_countries if c != origin_result]
@@ -163,6 +367,65 @@ def extract_policy_from_article(title, all_origins, all_countries, all_industrie
         "from_news": title,
     }
 
+_POLICY_LEVERS = [
+    "ln_tariff",
+    "ln_ideal_point_distance",
+    "ln_distcap",
+    "ln_reporter_gdp_per_capita",
+    "ln_partner_gdp_per_capita",
+]
+
+def get_claude_policy_suggestion(title, summary, origin, partner, industry):
+    """
+    Call Claude Haiku to suggest lever % changes for a trade policy based on
+    a news article. Returns a dict with lever keys + 'reasoning', or None on failure.
+    """
+    lever_list = "\n".join(f"- {lv}" for lv in _POLICY_LEVERS)
+    prompt = f"""You are a trade policy analyst. Given the news article below, suggest percentage
+changes for each gravity-model lever to simulate the article's likely trade impact.
+
+Article title: {title}
+Article summary: {summary}
+Detected origin country: {origin}
+Detected partner country: {partner}
+Detected industry: {industry}
+
+Return ONLY a JSON object (no markdown, no explanation outside the JSON) with exactly these keys:
+{lever_list}
+- reasoning
+
+Rules:
+- Each lever value must be an integer between -50 and 100.
+- 0 means no change.
+- ln_tariff: positive = tariff hike (more trade friction), negative = tariff cut.
+- ln_ideal_point_distance: positive = greater political divergence, negative = closer alignment.
+- ln_distcap: rarely changes; use 0 unless the article implies a major geographic/logistics shift.
+- ln_reporter_gdp_per_capita and ln_partner_gdp_per_capita: reflect expected GDP growth/contraction.
+- reasoning: 1-2 sentences explaining your choices.
+
+Example (do not copy values blindly):
+{{"ln_tariff": 25, "ln_ideal_point_distance": 10, "ln_distcap": 0, "ln_reporter_gdp_per_capita": -5, "ln_partner_gdp_per_capita": -5, "reasoning": "The tariff hike increases trade friction while political tensions worsen bilateral alignment."}}"""
+
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        import json as _json
+        data = _json.loads(raw)
+        result = {lv: int(max(-50, min(100, data.get(lv, 0)))) for lv in _POLICY_LEVERS}
+        result["reasoning"] = str(data.get("reasoning", ""))
+        return result
+    except Exception:
+        return None
+
+
 @st.cache_data(ttl=300)  # refresh every 5 minutes
 def get_news():
     feeds = [
@@ -199,7 +462,8 @@ def get_news():
                     "link": entry.link,
                     "source": source,
                     "published": published,
-                    "sentiment": get_sentiment(title + " " + summary)
+                    "sentiment": get_sentiment(title + " " + summary),
+                    "summary": summary[:300],
                 })
 
     return articles
@@ -420,6 +684,9 @@ if "chat_messages" not in st.session_state:
 if "show_chat" not in st.session_state:
     st.session_state.show_chat = False
 
+if "pending_news_policy" not in st.session_state:
+    st.session_state.pending_news_policy = {}
+
 # -------------------------------
 # Page config
 # -------------------------------
@@ -589,7 +856,7 @@ with _title_col:
 """, unsafe_allow_html=True)
 with _fab_col:
     st.markdown('<div style="margin-top:30px;"></div>', unsafe_allow_html=True)
-    _chat_lbl = "✕ Close" if st.session_state.show_chat else "Chat"
+    _chat_lbl = "Close" if st.session_state.show_chat else "Chat"
     if st.button(_chat_lbl, key="chat_fab", use_container_width=True):
         st.session_state.show_chat = not st.session_state.show_chat
         st.rerun()
@@ -600,34 +867,64 @@ with _fab_col:
 def build_dashboard_context():
     try:
         ctx_origin = origin
-        ctx_region = region
-        ctx_industry = selected_industry
-        ctx_comparison = comparison_data
-        ctx_policies = st.session_state.policies
     except NameError:
-        return "Dashboard data not yet loaded."
+        ctx_origin = "Unknown"
+
+    try:
+        ctx_regions = selected_regions
+    except NameError:
+        ctx_regions = ["All"]
+
+    try:
+        ctx_industries = selected_industries
+    except NameError:
+        ctx_industries = ["All"]
+
+    try:
+        ctx_comparison = comparison_data
+    except NameError:
+        ctx_comparison = []
+
+    ctx_policies = st.session_state.policies
 
     lines = [
         f"Origin Country: {ctx_origin}",
-        f"Selected Region: {ctx_region}",
-        f"Selected Industry: {ctx_industry}",
+        f"Selected Regions: {', '.join(ctx_regions)}",
+        f"Selected Industries: {', '.join(ctx_industries)}",
         "",
         "Top Trading Partners currently displayed on the map:",
     ]
-    for d in ctx_comparison:
-        lines.append(
-            f"  - {d['Country']} | Rank #{d['Rank']} | Risk Index: {d['Risk Index']:.2f} | "
-            f"Actual vs Expected: {d['Actual vs Expected']:.0f}% | "
-            f"Imports: {d['Imports %']:.2f}% | Exports: {d['Exports %']:.2f}%"
-        )
+
+    if ctx_comparison:
+        for d in ctx_comparison:
+            lines.append(
+                f"  - {d['Country']} | Rank #{d['Rank']} | Risk Index: {d['Risk Index']:.2f} | "
+                f"Actual vs Expected: {d['Actual vs Expected']:.0f}% | "
+                f"Imports: {d['Imports %']:.2f}% | Exports: {d['Exports %']:.2f}%"
+            )
+    else:
+        lines.append("  (No partner data available yet — user may not have opened the Map & Charts tab.)")
+
     if ctx_policies:
         lines.append("")
         lines.append("Active Trade Policies:")
         for p in ctx_policies:
-            lines.append(
-                f"  - {p['origin']} → {p['country']} ({p['industry']}) | "
-                f"Trade x{p['trade_multiplier']}, Risk x{p['risk_multiplier']}, AE +{p['ae_adjustment']}"
-            )
+            # Handle both policy formats (manual levers vs legacy multipliers)
+            if "policy_vars" in p:
+                lever_summary = ", ".join(
+                    f"{k.replace('ln_', '').replace('_', ' ').title()}: {'+' if v > 0 else ''}{v}%"
+                    for k, v in p["policy_vars"].items() if v != 0
+                ) or "no lever changes"
+                lines.append(
+                    f"  - {p['origin']} → {p['country']} ({p['industry']}) | "
+                    f"Levers: {lever_summary} | Estimated trade impact: {p.get('trade_effect', 0):+.1f}%"
+                    + (f" [from news: {p['from_news'][:60]}]" if p.get("from_news") else "")
+                )
+            else:
+                lines.append(
+                    f"  - {p['origin']} → {p['country']} ({p['industry']}) | "
+                    f"Trade x{p.get('trade_multiplier', 0)}, Risk x{p.get('risk_multiplier', 0)}"
+                )
     else:
         lines += ["", "No active trade policies."]
 
@@ -636,7 +933,7 @@ def build_dashboard_context():
     all_regions_list = sorted(df["region"].unique().tolist())
     lines += [
         "",
-        f"Dataset covers {len(df)} rows across {len(all_countries_list)} countries.",
+        f"Dataset covers {len(df)} rows across {len(all_countries_list)} partner countries.",
         f"Available industries: {', '.join(all_industries_list)}",
         f"Available regions: {', '.join(all_regions_list)}",
     ]
@@ -1953,11 +2250,7 @@ if st.session_state.show_chat and col_chat is not None:
                     unsafe_allow_html=True
                 )
             else:
-                st.markdown(
-                    f'<div style="display:flex; justify-content:flex-start; margin:6px 0;">'
-                    f'<div class="chat-assistant">{msg["content"]}</div></div>',
-                    unsafe_allow_html=True
-                )
+                st.markdown(msg["content"])
 
         st.divider()
 
@@ -2009,15 +2302,21 @@ with st.sidebar:
         except NameError:
             display_news = news
 
+        _lever_labels = {
+            "ln_tariff": "Tariff",
+            "ln_ideal_point_distance": "Political Distance",
+            "ln_distcap": "Distance/Logistics",
+            "ln_reporter_gdp_per_capita": "Origin GDP/cap",
+            "ln_partner_gdp_per_capita": "Partner GDP/cap",
+        }
+
         for i, article in enumerate(display_news):
             date_str = format_date(article["published"])
             title_lower = article["title"].lower()
-            # detected_origins = [c for c in all_origins if c.lower() in title_lower]
-            # detected_partners = [c for c in all_countries if c.lower() in title_lower]
-            # Need at least one origin AND one distinct partner to enable the button
-            detected_countries = [c for c in all_countries if c.lower() in title_lower]
-            # partner_only = [c for c in detected_par if c not in detected_origins]
-            has_countries = bool(detected_countries) & (len(detected_countries) > 1)
+            detected_in_origins = set(detect_countries_in_text(title_lower, all_origins))
+            detected_in_partners = set(detect_countries_in_text(title_lower, all_countries))
+            all_detected = detected_in_origins | detected_in_partners
+            has_countries = len(all_detected) >= 2
 
             st.markdown(f"""
 <div style="margin-bottom:6px;">
@@ -2034,21 +2333,92 @@ with st.sidebar:
 </div>
 """, unsafe_allow_html=True)
 
+            # --- Suggest Policy card ---
             if has_countries:
-                if st.button("Add to Map", key=f"news_policy_{i}", use_container_width=True):
-                    policy = extract_policy_from_article(
-                        article["title"], all_origins, all_countries, all_industries
-                    )
-                    st.session_state.policies.append(policy)
-                    st.session_state.last_news_policy = article["title"]
-                    try:
-                        st.toast(
-                            f"Policy added: {policy['origin']} → {policy['country']} | {policy['industry']}",
-                            icon="📰"
+                pending = st.session_state.pending_news_policy.get(i)
+
+                if pending is None:
+                    if st.button("Suggested Policy", key=f"news_suggest_{i}", use_container_width=True):
+                        base = extract_policy_from_article(
+                            article["title"], all_origins, all_countries, all_industries
                         )
-                    except Exception:
-                        pass
-                    st.rerun()
+                        with st.spinner("Formulating policy..."):
+                            suggestion = get_claude_policy_suggestion(
+                                title=article["title"],
+                                summary=article.get("summary", ""),
+                                origin=base["origin"],
+                                partner=base["country"],
+                                industry=base["industry"],
+                            )
+                        if suggestion is not None:
+                            st.session_state.pending_news_policy[i] = {
+                                "origin": base["origin"],
+                                "partner": base["country"],
+                                "industry": base["industry"],
+                                "levers": {lv: suggestion[lv] for lv in _POLICY_LEVERS},
+                                "reasoning": suggestion.get("reasoning", ""),
+                                "article_title": article["title"],
+                            }
+                        else:
+                            st.session_state.pending_news_policy[i] = "failed"
+                        st.rerun()
+
+                elif pending == "failed":
+                    st.warning("Claude could not generate a suggestion for this article.")
+                    if st.button("Dismiss", key=f"news_dismiss_fail_{i}", use_container_width=True):
+                        del st.session_state.pending_news_policy[i]
+                        st.rerun()
+
+                else:
+                    lever_lines = "&nbsp;&nbsp;".join(
+                        f"<b>{_lever_labels[lv]}</b>: {'+' if v > 0 else ''}{v}%"
+                        for lv, v in pending["levers"].items()
+                        if v != 0
+                    ) or "No policies suggested"
+
+                    st.markdown(f"""
+<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);
+            border-radius:8px;padding:10px;margin-bottom:6px;font-size:12px;">
+  <div style="font-weight:700;margin-bottom:4px;">
+    📋 {pending['origin']} → {pending['partner']} | {pending['industry']}
+  </div>
+  <div style="opacity:0.75;margin-bottom:6px;font-style:italic;">{pending['reasoning']}</div>
+  <div style="opacity:0.85;">{lever_lines}</div>
+</div>
+""", unsafe_allow_html=True)
+
+                    col_apply, col_dismiss = st.columns(2)
+                    with col_apply:
+                        if st.button("Apply", key=f"news_apply_{i}", use_container_width=True):
+                            levers = pending["levers"]
+                            log_effect = sum(
+                                coef_map.get(lv, 0) * np.log(max(1 + pct / 100, 1e-6))
+                                for lv, pct in levers.items()
+                            )
+                            trade_effect = (np.exp(log_effect) - 1) * 100
+                            st.session_state.policies.append({
+                                "origin": pending["origin"],
+                                "country": pending["partner"],
+                                "industry": pending["industry"],
+                                "policy_vars": levers,
+                                "trade_effect": trade_effect,
+                                "from_news": pending["article_title"],
+                            })
+                            st.session_state.last_news_policy = pending["article_title"]
+                            del st.session_state.pending_news_policy[i]
+                            try:
+                                st.toast(
+                                    f"Policy applied: {pending['origin']} → {pending['partner']} | {pending['industry']}"
+                                    
+                                )
+                            except Exception:
+                                pass
+                            st.rerun()
+
+                    with col_dismiss:
+                        if st.button("Dismiss", key=f"news_dismiss_{i}", use_container_width=True):
+                            del st.session_state.pending_news_policy[i]
+                            st.rerun()
 
             st.markdown('<hr style="margin:6px 0; opacity:0.2;">', unsafe_allow_html=True)
 
