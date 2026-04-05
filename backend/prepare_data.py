@@ -16,6 +16,7 @@ def fetch_data(url):
 
     if response.status_code != 200:
         raise ValueError(f"Failed to fetch data from {url}. Status code: {response.status_code}")
+    
     return BytesIO(response.content)
 
 
@@ -30,10 +31,10 @@ def clean_export(exporturl,
     # Read export and import data into a pandas DataFrame, selecting relevant columns and the export value column
     df_export = pd.read_csv(export_data, encoding = 'latin1', index_col = 0)[relevant_columns + [export_val]]
 
-    # Drop rows that contain any NaN values, which typically result from unmatched entries in the outer merge
+    # Drop rows that contain any NaN values
     df_export.dropna(inplace = True)
 
-    # Reset the DataFrame index after dropping rows, ensuring a clean sequential index
+    # Reset the DataFrame index after dropping rows
     df_export.reset_index(drop = True, inplace = True)
 
     # Rename column
@@ -52,10 +53,10 @@ def clean_import(importurl,
     # Read export and import data into a pandas DataFrame, selecting relevant columns and the export value column
     df_import = pd.read_csv(import_data, encoding = 'latin1', index_col = 0)[relevant_columns + [import_val]]
 
-    # Drop rows that contain any NaN values, which typically result from unmatched entries in the outer merge
+    # Drop rows that contain any NaN values
     df_import.dropna(inplace = True)
 
-    # Reset the DataFrame index after dropping rows, ensuring a clean sequential index
+    # Reset the DataFrame index after dropping rows
     df_import.reset_index(drop = True, inplace = True)
 
     # Rename column
@@ -70,6 +71,7 @@ def df_gdp_clean():
     df_gdp = df_gdp.melt(id_vars=['Country Name', 'Country Code'], var_name='year', value_name='gdp')
     df_gdp.dropna(inplace = True)
     df_gdp['year'] = df_gdp['year'].astype(int)
+    
     return df_gdp
 
 # clean population data
@@ -78,6 +80,7 @@ def df_pop_clean():
     df_population = df_population.melt(id_vars=['Country Name', 'Country Code'], var_name='year', value_name='population')
     df_population.dropna(inplace = True)
     df_population['year'] = df_population['year'].astype(int)
+    
     return df_population
 
 # clean geographical distance data
@@ -91,8 +94,10 @@ def df_geogdist_clean():
         df_geogdist[a] = df_geogdist[a].astype('float64')
     df_geogdist.reset_index(inplace = True)
     df_geogdist.dropna(inplace = True)
+    
     return df_geogdist
 
+# clean tariff data
 def df_tariff_clean(url):
     df_tariff = pd.read_csv(fetch_data(url), encoding='latin1', index_col=0)
 
@@ -161,7 +166,6 @@ def df_tariff_clean(url):
     
     return df_tariff
 
-
 # clean centroid coordinates data
 def df_centroid_coords_clean():
     df_coords = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Country%20ISO%20Codes%20and%20Centroid%20Coordinates.csv"))
@@ -177,6 +181,7 @@ def df_centroid_coords_clean():
 def df_isoregion_clean():
     df_isoregion = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/iso_country_codes_with_regions.csv"), encoding='latin1')
     df_isoregion = df_isoregion[['alpha-3', 'region']]
+    
     return df_isoregion
 
 # clean iso to cow code
@@ -194,12 +199,12 @@ def df_geopolitical_dist_clean():
     
     df_isocow_ccode = df_isocow_ccode_clean()
 
-    #Setting the index to cow_id and cow3 for easier merging later on
+    # Setting the index to cow_id and cow3 for easier merging later on
     df_isocow_ccode.set_index(["cow_id", "cow3"], inplace=True)
-    #print("COW to ISO code mapping DataFrame of shape "+str(df_isocow_ccode.shape)+" has been loaded successfully!")
+    # print("COW to ISO code mapping DataFrame of shape "+str(df_isocow_ccode.shape)+" has been loaded successfully!")
 
-    #using harvard dataverse
-    #geopo_dist_agreement_scores_df= fetch_geopolitical_dist_dataverse()
+    # using harvard dataverse
+    # geopo_dist_agreement_scores_df= fetch_geopolitical_dist_dataverse()
     geopo_dist_agreement_scores_df = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/agreementnewfiltered.csv"))
 
     geopo_dist_agreement_scores_df = geopo_dist_agreement_scores_df[geopo_dist_agreement_scores_df['year'] >= 2015]
@@ -243,52 +248,54 @@ def df_geopolitical_dist_clean():
 
 # clean transport cost data
 def df_transport_costs_clean(url):
-  df = pd.read_csv(fetch_data(url), encoding = 'latin1', usecols = [4,5,6,7,18,20]).rename(columns={'OBS_VALUE': 'Transportation Cost'})
-  df = df.sort_values(by='TIME_PERIOD').reset_index(drop=True)
-  return df
+    df = pd.read_csv(fetch_data(url), encoding = 'latin1', usecols = [4,5,6,7,18,20]).rename(columns={'OBS_VALUE': 'Transportation Cost'})
+    df = df.sort_values(by='TIME_PERIOD').reset_index(drop=True)
+    
+    return df
 
 # clean exchange rate data
+# euro area expansion: for rows with "Euro Area (EA)"
+# expand into individual countries based on the list of countries in the euro area
+# filter out Croatia for years before 2023.
 def euro_area_expansion(df):
-  eu_map = pd.DataFrame({
-      #austria, belgium, finland, france, germany, ireland, italy,
-      #luxembourg, netherland, portugal, spain, greece, slovenia, cyprus, malta, slovakia, estonia, latvia, lithuania, croatia
-      "country": [
-          "Austria","Belgium","Croatia","Cyprus",
-          "Estonia","Finland","France","Germany","Greece","Ireland",
-          "Italy","Latvia","Lithuania","Luxembourg","Malta","Netherlands",
-          "Portugal","Slovakia","Slovenia","Spain"
-      ],
-      "iso": [
-          "AUT","BEL","HRV","CYP","EST","FIN","FRA","DEU","GRC",
-          "IRL","ITA","LVA","LTU","LUX","MLT","NLD","PRT","SVK",
-          "SVN","ESP"
-      ]
-  })
+    eu_map = pd.DataFrame({
+        # austria, belgium, finland, france, germany, ireland, italy,
+        # luxembourg, netherland, portugal, spain, greece, slovenia, cyprus, malta, slovakia, estonia, latvia, lithuania, croatia
+        "country": [
+            "Austria","Belgium","Croatia","Cyprus",
+            "Estonia","Finland","France","Germany","Greece","Ireland",
+            "Italy","Latvia","Lithuania","Luxembourg","Malta","Netherlands",
+            "Portugal","Slovakia","Slovenia","Spain"
+        ],
+        "iso": [
+            "AUT","BEL","HRV","CYP","EST","FIN","FRA","DEU","GRC",
+            "IRL","ITA","LVA","LTU","LUX","MLT","NLD","PRT","SVK",
+            "SVN","ESP"
+        ]
+    })
 
-  # Split EU vs non-EU (assuming EU appears in Partner Economy)
-  df_eu = df[df['COUNTRY'] == 'Euro Area (EA)']
-  df_non_eu = df[df['COUNTRY'] != 'Euro Area (EA)']
+    # Split EU vs non-EU (assuming EU appears in Partner Economy)
+    df_eu = df[df['COUNTRY'] == 'Euro Area (EA)']
+    df_non_eu = df[df['COUNTRY'] != 'Euro Area (EA)']
 
-  # Expand EU rows
-  df_eu_expanded = df_eu.merge(eu_map, how='cross')
+    # Expand EU rows
+    df_eu_expanded = df_eu.merge(eu_map, how='cross')
 
-  # Replace with actual countries
-  df_eu_expanded['COUNTRY'] = df_eu_expanded['country']
-  df_eu_expanded['COUNTRY ISO'] = df_eu_expanded['iso']
-  #df_eu_expanded['Reporting Economy Code'] = df_eu_expanded['iso_code']
+    # Replace with actual countries
+    df_eu_expanded['COUNTRY'] = df_eu_expanded['country']
+    df_eu_expanded['COUNTRY ISO'] = df_eu_expanded['iso']
+    # df_eu_expanded['Reporting Economy Code'] = df_eu_expanded['iso_code']
 
-  # Filter out UK for years after 2019 (Brexit)
-  df_eu_expanded = df_eu_expanded[~((df_eu_expanded['COUNTRY ISO'] == 'GBR') & (df_eu_expanded['TIME_PERIOD'] > 2019))] #UK
+    # Filter out for countries joining European union
+    df_eu_expanded = df_eu_expanded[~((df_eu_expanded['COUNTRY ISO'] == 'HRV') & (df_eu_expanded['TIME_PERIOD'] <= 2022))] #Croatia
 
-  #Filter out for countries joining European union
-  df_eu_expanded = df_eu_expanded[~((df_eu_expanded['COUNTRY ISO'] == 'HRV') & (df_eu_expanded['TIME_PERIOD'] <= 2022))] #Croatia
+    # Drop helper columns
+    df_eu_expanded = df_eu_expanded.drop(columns=['country', 'iso'])
 
-  # Drop helper columns
-  df_eu_expanded = df_eu_expanded.drop(columns=['country', 'iso'])
-
-  # Combine back
-  df = pd.concat([df_non_eu, df_eu_expanded], ignore_index=True)
-  return df
+    # Combine back
+    df = pd.concat([df_non_eu, df_eu_expanded], ignore_index=True)
+    
+    return df
 
 def df_exchange_rate_clean():
     df_exchange_rate = pd.read_csv(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Exchange%20Rate%20per%20USD%202014_2024.csv"), encoding='latin1')
@@ -299,142 +306,144 @@ def df_exchange_rate_clean():
 	df_exchange_rate.groupby(['COUNTRY ISO'])['Exchange Rate'].pct_change() * 100)
     df_exchange_rate=df_exchange_rate[df_exchange_rate['TIME_PERIOD']>=2015]
     df_exchange_rate= euro_area_expansion(df_exchange_rate)
+    
     return df_exchange_rate
 
 # clean state visit data
 def df_state_visits_clean():
-  df_visits = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Diplometrics_COLT_Travel_Dataset_Primary-HOGS-1990-2024_20250317%20(1).xlsx"),sheet_name = "Master")
-  df_visits = df_visits.reset_index()
-  df_visits = df_visits[(df_visits['TripYear'] >= 2015) & (df_visits['TripYear'] <= 2024)]
+    df_visits = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/Diplometrics_COLT_Travel_Dataset_Primary-HOGS-1990-2024_20250317%20(1).xlsx"),sheet_name = "Master")
+    df_visits = df_visits.reset_index()
+    df_visits = df_visits[(df_visits['TripYear'] >= 2015) & (df_visits['TripYear'] <= 2024)]
 
-  # Counting for number of visits between each pair of countries
-  df_visits['standardized_pair'] = df_visits.apply(
-      lambda row: tuple(sorted([row['LeaderCountryISO'], row['CountryVisitedISO']])),
-      axis=1
-  )
-  individual_pairs = df_visits.groupby(['TripYear', 'standardized_pair']).size().reset_index(name='Total_Visits')
-  individual_pairs[['Country_ISO_1', 'Country_ISO_2']] = pd.DataFrame(individual_pairs['standardized_pair'].tolist(), index=individual_pairs.index)
-  individual_pairs = individual_pairs.drop(columns=['standardized_pair'])
+    # Counting for number of visits between each pair of countries
+    df_visits['standardized_pair'] = df_visits.apply(
+        lambda row: tuple(sorted([row['LeaderCountryISO'], row['CountryVisitedISO']])),
+        axis=1
+    )
+    individual_pairs = df_visits.groupby(['TripYear', 'standardized_pair']).size().reset_index(name='Total_Visits')
+    individual_pairs[['Country_ISO_1', 'Country_ISO_2']] = pd.DataFrame(individual_pairs['standardized_pair'].tolist(), index=individual_pairs.index)
+    individual_pairs = individual_pairs.drop(columns=['standardized_pair'])
 
-  # Recoding for asymmetric pairs
-  asymmetric_pairs = individual_pairs[individual_pairs['Country_ISO_1'] != individual_pairs['Country_ISO_2']].copy()
-  asymmetric_pairs['Country_ISO_1'], asymmetric_pairs['Country_ISO_2'] = asymmetric_pairs['Country_ISO_2'], asymmetric_pairs['Country_ISO_1']
-  df_visits_count = pd.concat([individual_pairs, asymmetric_pairs], ignore_index=True)
-  df_visits_count = df_visits_count.sort_values(by=['TripYear', 'Country_ISO_1', 'Country_ISO_2']).reset_index(drop=True)
-  return df_visits_count
+    # Recoding for asymmetric pairs
+    asymmetric_pairs = individual_pairs[individual_pairs['Country_ISO_1'] != individual_pairs['Country_ISO_2']].copy()
+    asymmetric_pairs['Country_ISO_1'], asymmetric_pairs['Country_ISO_2'] = asymmetric_pairs['Country_ISO_2'], asymmetric_pairs['Country_ISO_1']
+    df_visits_count = pd.concat([individual_pairs, asymmetric_pairs], ignore_index=True)
+    df_visits_count = df_visits_count.sort_values(by=['TripYear', 'Country_ISO_1', 'Country_ISO_2']).reset_index(drop=True)
+    
+    return df_visits_count
 
 # clean military data
 def df_military_clean():
-  #read data from github
-  df_civftl = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/number_of_political_violence_events_by_country-year_as-of-06Mar2026.xlsx"))
-  df_polvol = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/number_of_reported_fatalities_by_country-year_as-of-06Mar2026.xlsx"))
+    # read data from github
+    df_civftl = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/number_of_political_violence_events_by_country-year_as-of-06Mar2026.xlsx"))
+    df_polvol = pd.read_excel(fetch_data("https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/number_of_reported_fatalities_by_country-year_as-of-06Mar2026.xlsx"))
 
-   # Reset index of df_isocow_ccode to make 'cname' accessible for merging
-  df_isocow_ccode=df_isocow_ccode_clean()
-  df_isocow_ccode = df_isocow_ccode.reset_index()
-
-
-  df_military = pd.merge(df_civftl, df_polvol, on=['COUNTRY', 'YEAR'], how='inner')
+    # Reset index of df_isocow_ccode to make 'cname' accessible for merging
+    df_isocow_ccode=df_isocow_ccode_clean()
+    df_isocow_ccode = df_isocow_ccode.reset_index()
 
 
-
-  # Create a unique mapping from country name to iso3 code
-  # If a country name maps to multiple iso3 codes, keep the first one encountered
-  unique_iso_mapping = df_isocow_ccode.drop_duplicates(subset=['cname'], keep='first')[['cname', 'iso3']]
-
-  # Merge df_military with the unique ISO mapping
-  df_military = pd.merge(df_military,
-                        unique_iso_mapping,
-                        left_on='COUNTRY',
-                        right_on='cname',
-                        how='left')
-
-  # Rename the 'iso3' column to 'country_ISO' for clarity
-  df_military.rename(columns={'iso3': 'country_ISO'}, inplace=True)
-
-  # Drop the redundant 'cname' column from the merge
-  df_military.drop(columns=['cname'], inplace=True)
-
-  # Ensure the index is unique after all merges and manipulations
-  df_military = df_military.reset_index(drop=True)
-
-  #Some country has missing or non corresponding names they were manually matched, those countries can be found by running code below
-  #df_military_missing_iso = df_military[df_military['country_ISO'].isna()]
-  #df_military_missing_iso["COUNTRY"].unique()
-
-  country_name_mapping = {
-    'Akrotiri and Dhekelia': 'GBR',
-    'Bailiwick of Guernsey': 'GBR',
-    'Bailiwick of Jersey': 'GBR',
-    'Bolivia': 'BOL',
-    'Bosnia and Herzegovina': 'BIH',
-    'British Indian Ocean Territory': 'GBR',
-    'British Virgin Islands': 'VGB',
-    'Brunei': 'BRN',
-    'Cape Verde': 'CPV',
-    'Caribbean Netherlands': 'NLD',
-    'Cayman Islands': 'CYM',
-    'Central African Republic': 'CAF',
-    'Christmas Island': 'CXR',
-    'Cocos (Keeling) Islands': 'CCK',
-    'Cook Islands': 'COK',
-    'Curacao': 'CUW',
-    'Czech Republic': 'CZE',
-    'Democratic Republic of Congo': 'COD',
-    'Dominican Republic': 'DOM',
-    'East Timor': 'TLS',
-    'Falkland Islands': 'FLK',
-    'Faroe Islands': 'FRO',
-    'French Guiana': 'GUF',
-    'French Southern and Antarctic Lands': 'ATF',
-    'Guadeloupe': 'GLP',
-    'Isle of Man': 'IMN',
-    'Ivory Coast': 'CIV',
-    'Kosovo': 'XKX',
-    'Laos': 'LAO',
-    'Liechtenstein': 'LIE',
-    'Marshall Islands': 'MHL',
-    'Martinique': 'MTQ',
-    'Micronesia': 'FSM',
-    'Moldova': 'MDA',
-    'Monaco': 'MCO',
-    'Norfolk Island': 'NFK',
-    'North Korea': 'PRK',
-    'North Macedonia': 'MKD',
-    'Northern Mariana Islands': 'MNP',
-    'Palestine': 'PSE',
-    'Puerto Rico': 'PRI',
-    'Republic of Congo': 'COG',
-    'Reunion': 'REU',
-    'Russia': 'RUS',
-    'Saint Helena, Ascension and Tristan da Cunha': 'SHN',
-    'Saint-Barthelemy': 'BLM',
-    'Saint-Martin': 'MAF',
-    'Sint Maarten': 'SXM',
-    'Solomon Islands': 'SLB',
-    'South Korea': 'KOR',
-    'Taiwan': 'TWN',
-    'Tanzania': 'TZA',
-    'Turks and Caicos Islands': 'TCA',
-    'United States': 'USA',
-    'Vatican City': 'VAT',
-    'Vietnam': 'VNM',
-    'Virgin Islands, U.S.': 'USA',
-    'Wallis and Futuna': 'WLF',
-    'eSwatini': 'SWZ'
-  }
-
-  df_military['country_ISO'] = df_military.apply(
-    lambda row: country_name_mapping[row['COUNTRY']] if pd.isna(row['country_ISO']) and row['COUNTRY'] in country_name_mapping else row['country_ISO'],
-    axis=1
-  )
-
-  df_military = df_military.groupby(['country_ISO', 'YEAR'])[['FATALITIES', 'EVENTS']].sum().reset_index()
-  df_military.rename(columns={'FATALITIES': 'total_fatalities', "EVENTS":"total_Events"}, inplace=True)
-
-  return df_military
+    df_military = pd.merge(df_civftl, df_polvol, on=['COUNTRY', 'YEAR'], how='inner')
 
 
+
+    # Create a unique mapping from country name to iso3 code
+    # If a country name maps to multiple iso3 codes, keep the first one encountered
+    unique_iso_mapping = df_isocow_ccode.drop_duplicates(subset=['cname'], keep='first')[['cname', 'iso3']]
+
+    # Merge df_military with the unique ISO mapping
+    df_military = pd.merge(df_military,
+                            unique_iso_mapping,
+                            left_on='COUNTRY',
+                            right_on='cname',
+                            how='left')
+
+    # Rename the 'iso3' column to 'country_ISO' for clarity
+    df_military.rename(columns={'iso3': 'country_ISO'}, inplace=True)
+
+    # Drop the redundant 'cname' column from the merge
+    df_military.drop(columns=['cname'], inplace=True)
+
+    # Ensure the index is unique after all merges and manipulations
+    df_military = df_military.reset_index(drop=True)
+
+    # Some country has missing or non corresponding names they were manually matched, those countries can be found by running code below
+    # df_military_missing_iso = df_military[df_military['country_ISO'].isna()]
+    # df_military_missing_iso["COUNTRY"].unique()
+
+    country_name_mapping = {
+        'Akrotiri and Dhekelia': 'GBR',
+        'Bailiwick of Guernsey': 'GBR',
+        'Bailiwick of Jersey': 'GBR',
+        'Bolivia': 'BOL',
+        'Bosnia and Herzegovina': 'BIH',
+        'British Indian Ocean Territory': 'GBR',
+        'British Virgin Islands': 'VGB',
+        'Brunei': 'BRN',
+        'Cape Verde': 'CPV',
+        'Caribbean Netherlands': 'NLD',
+        'Cayman Islands': 'CYM',
+        'Central African Republic': 'CAF',
+        'Christmas Island': 'CXR',
+        'Cocos (Keeling) Islands': 'CCK',
+        'Cook Islands': 'COK',
+        'Curacao': 'CUW',
+        'Czech Republic': 'CZE',
+        'Democratic Republic of Congo': 'COD',
+        'Dominican Republic': 'DOM',
+        'East Timor': 'TLS',
+        'Falkland Islands': 'FLK',
+        'Faroe Islands': 'FRO',
+        'French Guiana': 'GUF',
+        'French Southern and Antarctic Lands': 'ATF',
+        'Guadeloupe': 'GLP',
+        'Isle of Man': 'IMN',
+        'Ivory Coast': 'CIV',
+        'Kosovo': 'XKX',
+        'Laos': 'LAO',
+        'Liechtenstein': 'LIE',
+        'Marshall Islands': 'MHL',
+        'Martinique': 'MTQ',
+        'Micronesia': 'FSM',
+        'Moldova': 'MDA',
+        'Monaco': 'MCO',
+        'Norfolk Island': 'NFK',
+        'North Korea': 'PRK',
+        'North Macedonia': 'MKD',
+        'Northern Mariana Islands': 'MNP',
+        'Palestine': 'PSE',
+        'Puerto Rico': 'PRI',
+        'Republic of Congo': 'COG',
+        'Reunion': 'REU',
+        'Russia': 'RUS',
+        'Saint Helena, Ascension and Tristan da Cunha': 'SHN',
+        'Saint-Barthelemy': 'BLM',
+        'Saint-Martin': 'MAF',
+        'Sint Maarten': 'SXM',
+        'Solomon Islands': 'SLB',
+        'South Korea': 'KOR',
+        'Taiwan': 'TWN',
+        'Tanzania': 'TZA',
+        'Turks and Caicos Islands': 'TCA',
+        'United States': 'USA',
+        'Vatican City': 'VAT',
+        'Vietnam': 'VNM',
+        'Virgin Islands, U.S.': 'USA',
+        'Wallis and Futuna': 'WLF',
+        'eSwatini': 'SWZ'
+    }
+
+    df_military['country_ISO'] = df_military.apply(
+        lambda row: country_name_mapping[row['COUNTRY']] if pd.isna(row['country_ISO']) and row['COUNTRY'] in country_name_mapping else row['country_ISO'],
+        axis=1
+    )
+
+    df_military = df_military.groupby(['country_ISO', 'YEAR'])[['FATALITIES', 'EVENTS']].sum().reset_index()
+    df_military.rename(columns={'FATALITIES': 'total_fatalities', "EVENTS":"total_Events"}, inplace=True)
+
+    return df_military
+
+# clean fdi data, with expansion for North Africa, Sub-saharan Africa, Middle East Economies, Central and South Asia, Latin America, and other Near and Middle East Economies and Caribbean
 north_africa_map = pd.DataFrame({
     "country": [
         "Algeria", "Egypt", "Libya", "Morocco", "Tunisia"
@@ -446,9 +455,6 @@ north_africa_map = pd.DataFrame({
         612, 469, 672, 686, 744
     ]
 })
-
-
-##### Regions to expand #####
 
 # Sub-saharan africa
 sub_saharan_africa_map = pd.DataFrame({
@@ -496,7 +502,7 @@ sub_saharan_africa_map = pd.DataFrame({
     ]
 })
 
-#Other Near and Middle East Economies
+# Other Near and Middle East Economies
 middle_east_map = pd.DataFrame({
     "country": [
         "Bahrain", "Iran", "Iraq", "Israel", "Jordan", "Kuwait",
@@ -572,7 +578,6 @@ caribbean_map = pd.DataFrame({
     ]
 })
 
-################################
 def normalize_columns_fdi(df):
     df = df.copy()
     df.columns = [
@@ -583,7 +588,6 @@ def normalize_columns_fdi(df):
         for col in df.columns
     ]
     return df
-
 
 def country_expansion_fdi(originaldf, region_map, region_id, inward=False):
     # Split countries in region vs not in region 
@@ -602,16 +606,15 @@ def country_expansion_fdi(originaldf, region_map, region_id, inward=False):
     # copy the iso values of the newly expanded rows
     df_reg_expanded['COUNTERPART_COUNTRY.ID'] = df_reg_expanded['iso']
 
-
-
     # Drop helper columns
     df_reg_expanded = df_reg_expanded.drop(columns=['country', 'iso', 'iso_code'])
 
     # Combine back
     new_combined_df_outward_fdi = pd.concat([df_non_reg, df_reg_expanded], ignore_index=True)
 
-    #keep the first occurrence of duplicates and drop the rest
+    # Keep the first occurrence of duplicates and drop the rest
     new_combined_df_outward_fdi = new_combined_df_outward_fdi[~new_combined_df_outward_fdi.duplicated(subset=['COUNTRY.ID', 'COUNTERPART_COUNTRY.ID', 'TIME_PERIOD'], keep='first')]
+    
     return new_combined_df_outward_fdi
 
 
@@ -628,9 +631,7 @@ def df_fdi_clean():
         (middle_east_map, 'GX454'),
     ]
 
-    # -----------------------
-    # INWARD FDI
-    # -----------------------
+    # Inward FDI
     df_inward_fdi = pd.read_csv(
         fetch_data(
             "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/"
@@ -639,9 +640,6 @@ def df_fdi_clean():
         encoding='latin1',
         usecols=[0, 1, 2, 6, 7, 10, 11]
     )
-
-    
-    #### Step 1: Clean inward fdi ####
     
     # cleaning the column name
     df_inward_fdi = normalize_columns_fdi(df_inward_fdi)
@@ -652,13 +650,10 @@ def df_fdi_clean():
     # converting all fdi flow values to numeric 
     df_inward_fdi['OBS_VALUE'] = pd.to_numeric(df_inward_fdi['OBS_VALUE'], errors='coerce')
 
-
-    #### Step 2: fill missing observed fdi flow with fdi flow reported by counterpart country  ####
-
     # list of column names which are keys
     keys = ['COUNTRY.ID', 'COUNTERPART_COUNTRY.ID', 'TIME_PERIOD']
 
-    ##### Step 2a. Create separate data frames for observed fdi flows and fdi flows reported by counterpart country #####
+    # Create separate data frames for observed fdi flows and fdi flows reported by counterpart country 
     df_o_in = (
         df_inward_fdi[df_inward_fdi['DV_TYPE.ID'] == 'O']
         .groupby(keys, as_index=False)['OBS_VALUE']
@@ -673,23 +668,19 @@ def df_fdi_clean():
         .rename(columns={'OBS_VALUE': 'SCC'})
     )
 
-    ##### Step 2b. Merge the 2 dataframes together on the keys. Fill missing observed value with fdi flows reported by counterpart country #####
+    # Merge the 2 dataframes together on the keys. Fill missing observed value with fdi flows reported by counterpart country
     df_inward = pd.merge(df_o_in, df_scc_in, on=keys, how='outer')
-    #If there is no observed data, assume the fdi flows is the data from "Derived using counterparty information" as a substitute
+    # If there is no observed data, assume the fdi flows is the data from "Derived using counterparty information" as a substitute
     df_inward['Inward FDI'] = df_inward['O'].fillna(df_inward['SCC'])
 
-    #### Step 3: Keep only the key columns and the inward fdi column ####
+    # Keep only the key columns and the inward fdi column
     df_inward = df_inward[keys + ['Inward FDI']]
 
-    #### Step 4: Goes through all the regions, and expand them out ####
+    # Goes through all the regions, and expand them out 
     for region_map, code in maps:
         df_inward = country_expansion_fdi(df_inward, region_map, code, inward=True)
 
-
-
-    # -----------------------
-    # OUTWARD FDI
-    # -----------------------
+    # Outward FDI
     df_outward_fdi = pd.read_csv(
         fetch_data(
             "https://github.com/ZhengXinning/dse3101-tariffied/blob/main/data/"
@@ -698,9 +689,6 @@ def df_fdi_clean():
         encoding='latin1',
         usecols=[0, 1, 2, 6, 7, 10, 11]
     )
-
-
-    #### Step 1: Clean inward fdi ####
     
     # cleaning the column name
     df_outward_fdi = normalize_columns_fdi(df_outward_fdi)
@@ -712,13 +700,12 @@ def df_fdi_clean():
     df_outward_fdi['OBS_VALUE'] = pd.to_numeric(df_outward_fdi['OBS_VALUE'], errors='coerce')
 
 
-    #### Step 2: fill missing observed fdi flow with fdi flow reported by counterpart country  ####
+    # fill missing observed fdi flow with fdi flow reported by counterpart country 
 
     # list of column names which are keys
     keys = ['COUNTRY.ID', 'COUNTERPART_COUNTRY.ID', 'TIME_PERIOD']
 
-    ##### Step 2a. Create separate data frames for observed fdi flows and fdi flows reported by counterpart country #####
-
+    # Create separate data frames for observed fdi flows and fdi flows reported by counterpart country 
     df_o = (
         df_outward_fdi[df_outward_fdi['DV_TYPE.ID'] == 'O']
         .groupby(keys, as_index=False)['OBS_VALUE']
@@ -733,15 +720,15 @@ def df_fdi_clean():
         .rename(columns={'OBS_VALUE': 'SCC'})
     )
 
-    ##### Step 2b. Merge the 2 dataframes together on the keys. Fill missing observed value with fdi flows reported by counterpart country #####
+    # Merge the 2 dataframes together on the keys. Fill missing observed value with fdi flows reported by counterpart country 
     df_outward = pd.merge(df_o, df_scc, on=keys, how='outer')
-    #If there is no observed data, assume the fdi flows is the data from "Derived using counterparty information" as a substitute
+    # If there is no observed data, assume the fdi flows is the data from "Derived using counterparty information" as a substitute
     df_outward['Outward FDI'] = df_outward['O'].fillna(df_outward['SCC'])
 
-    #### Step 3: Keep only the key columns and the inward fdi column ####
+    # Keep only the key columns and the outward fdi column
     df_outward = df_outward[keys + ['Outward FDI']]
 
-    #### Step 4: Goes through all the regions, and expand them out ####
+    # Goes through all the regions, and expand them out
     for region_map, code in maps:
         df_outward = country_expansion_fdi(df_outward, region_map, code)
 
@@ -756,10 +743,7 @@ def df_fdi_clean():
     # Drop na found in inward fdi and outward fdi because of the arithmetic operation later to prevent nan propogation
     df_fdi_merged = df_fdi_merged.dropna(subset=['Inward FDI', 'Outward FDI'])
 
-
-
-    #calculating the sum of absolute inward and outward fdi flows
+    # calculating the sum of absolute inward and outward fdi flows
     df_fdi_merged['total_fdi'] = df_fdi_merged['Inward FDI'] + df_fdi_merged['Outward FDI']
-
 
     return df_fdi_merged

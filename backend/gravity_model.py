@@ -81,7 +81,7 @@ def df_merge(df_trade, df_tariff):
         print(f"Error merging partner GDP: {e}")
         return pd.DataFrame()
 
-    #Merge partner population
+    # Merge partner population
     try:
         df_merge_trade_partgdp['refYear'] = df_merge_trade_partgdp['refYear'].astype(int)
         df_merge_trade_partpop= df_merge_trade_partgdp.merge(df_population,
@@ -97,7 +97,7 @@ def df_merge(df_trade, df_tariff):
         return pd.DataFrame()
 
 
-    #Merge partner coordinates
+    # Merge partner coordinates
     try:
         df_merge_trade_partpopcoord= df_merge_trade_partpop.merge(df_coords,
                           left_on=['partnerISO'],
@@ -110,7 +110,7 @@ def df_merge(df_trade, df_tariff):
         print(f"Error merging partner coordinates: {e}")
         return pd.DataFrame()
 
-    #Merge geographical distance
+    # Merge geographical distance
     try:
         df_geogdist['iso_o'] = df_geogdist['iso_o'].astype(str)
         df_geogdist['iso_d'] = df_geogdist['iso_d'].astype(str)
@@ -126,7 +126,7 @@ def df_merge(df_trade, df_tariff):
         print(f"Error merging geographical distance: {e}")
         return pd.DataFrame()
 
-    #Merge geopolitical distance
+    # Merge geopolitical distance
     try:
         df_geopoldist['iso3_country1'] = df_geopoldist['iso3_country1'].astype(str)
         df_geopoldist['iso3_country2'] = df_geopoldist['iso3_country2'].astype(str)
@@ -221,8 +221,8 @@ def gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
     # Define the regression formula based on the gravity model
     formula = (
         "ln_exportflow ~ ln_reporter_gdp_per_capita + ln_partner_gdp_per_capita + ln_distcap + "
-        "ln_tariff + C(cmdCode) + C(refYear) + ln_ideal_point_distance + ln_repPop + ln_partPop"
-        "+ C(reporterISO) + C(partnerISO)"
+        "ln_tariff + ln_repPop + ln_partPop + ln_ideal_point_distance"
+        "+ C(cmdCode) + C(refYear) + C(reporterISO) + C(partnerISO)"
     )
 
     # Build and fit the OLS model on the training data
@@ -242,13 +242,12 @@ def gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
 
       return results, test_df
 
-
     else:
       model = smf.ols(formula, data=model_df)
       results = model.fit()
       return results
 
-#Baseline gravity model WITHOUT geopolitical distance
+# Baseline gravity model WITHOUT geopolitical distance
 def base_gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
 
     # Create a working copy of the dataframe
@@ -281,8 +280,8 @@ def base_gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
     # Define the regression formula based on the gravity model
     formula = (
         "ln_exportflow ~ ln_reporter_gdp_per_capita + ln_partner_gdp_per_capita + ln_distcap + "
-        "ln_tariff + C(cmdCode) + C(refYear) + ln_repPop + ln_partPop"
-        "+ C(reporterISO) + C(partnerISO)"
+        "ln_tariff + ln_repPop + ln_partPop"
+        "+ C(cmdCode) + C(refYear) + C(reporterISO) + C(partnerISO)"
     )
 
     # Build and fit the OLS model on the training data
@@ -301,7 +300,6 @@ def base_gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
       test_df['predicted_exportflow'] = np.exp(test_df['predicted_ln_exportflow'])
 
       return results, test_df
-
 
     else:
       model = smf.ols(formula, data=model_df)
@@ -360,6 +358,7 @@ if __name__ == "__main__":
     combined_dfs = [v['cleaned_df'] for v in all_results.values() if v is not None]
     df_comb = pd.concat(combined_dfs, ignore_index=True)
 
+    # Save the combined dataframe w raw data for use in the gravity model
     os.makedirs("./backend/temp_df", exist_ok=True)
     df_comb.to_parquet("./backend/temp_df/df_comb.parquet")
 

@@ -46,9 +46,9 @@ if __name__ == "__main__":
     reporter_gdp/capita, partner_gdp/capita,
     ln_reporter_gdp_per_capita, ln_partner_gdp_per_capita, ln_distcap,
     ln_ideal_point_distance, ln_tariff, ln_repPop, ln_partPop,
-    predicted_exportFlow, tradeRatio
+    predicted_exportFlow, predicted_exportFlow_base, tradeRatio
     """
-
+    
     risk = pd.read_parquet('./backend/temp_df/df_pca_risk.parquet')
     df_risk = risk.copy()
     print(df_risk.shape)
@@ -60,7 +60,7 @@ if __name__ == "__main__":
        'IdealPointDistance_weighted', 'stateVisits_weighted',
        'repFatalities_weighted', 'repEvents_weighted',
        'partFatalities_weighted', 'partEvents_weighted', 'totalFdi_weighted',  
-       'Risk_Index_Raw', 'Risk_Index_Normalized'],
+       'Risk_Index_Raw'],
       dtype='str')
     """
 

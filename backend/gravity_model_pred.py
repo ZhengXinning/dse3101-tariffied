@@ -63,10 +63,10 @@ if __name__ == "__main__":
     reporter_gdp/capita, partner_gdp/capita,
     ln_reporter_gdp_per_capita, ln_partner_gdp_per_capita, ln_distcap,
     ln_ideal_point_distance, ln_tariff, ln_repPop, ln_partPop,
-    predicted_exportFlow, tradeRatio
+    predicted_exportFlow, predicted_exportFlow_base, tradeRatio
     """
 
-    # Save results
+    # Save results of gravity model data, with predicted export flow and trade ratio for merging with risk index data later
     os.makedirs("./backend/temp_df", exist_ok=True)
     df_gravity.to_parquet("./backend/temp_df/df_gravity.parquet")
 
