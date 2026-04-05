@@ -1531,7 +1531,7 @@ with tab2:
             "imports_pct": ((x["imports_vol"] * x["origin_trade_pct_gdp"]) / x["trade_value"]).sum() * 100,
             "exports_pct": ((x["exports_vol"] * x["origin_trade_pct_gdp"]) / x["trade_value"]).sum() * 100,
             "arrow_width_factor": x["origin_trade_pct_gdp"].sum()
-        }))
+        }), include_groups = False)
         .to_dict("index")
     )
      
