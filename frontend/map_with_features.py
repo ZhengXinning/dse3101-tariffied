@@ -1479,7 +1479,7 @@ with tab2:
         .drop_duplicates("country")["country_display"]
         .tolist()
     )
-    print(top5_countries)
+    
     # User sees a list of countries
     # Top 5 are pre-selected
     # User can override
