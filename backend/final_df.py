@@ -49,7 +49,7 @@ if __name__ == "__main__":
     predicted_exportFlow, tradeRatio
     """
 
-    risk = pd.read_parquet('./backend/temp_df/df_risk.parquet')
+    risk = pd.read_parquet('./backend/temp_df/df_pca_risk.parquet')
     df_risk = risk.copy()
     print(df_risk.shape)
     """

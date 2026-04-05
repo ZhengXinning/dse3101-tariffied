@@ -29,8 +29,14 @@ risk_columns = [
     "totalFdi"
 ]
 
+# Direction map: -1 for variables where higher values indicate higher risk 
+# +1 for the opposite
 direction_map = {
-    "stateVisits": -1,   
+    "transptCost": -1,
+    "fxChange": -1,
+    "stateVisits": -1,
+    "partEvents": -1,
+    "partFatalities": -1,  
 }
 
 log_cols = [
@@ -39,7 +45,6 @@ log_cols = [
     "partFatalities",
     "partEvents"
 ]
-
 
 def pca_risk_index(
     df,
@@ -95,12 +100,6 @@ def pca_risk_index(
     weighted_df = X_scaled_df.mul(loadings, axis=1)
     risk_index_raw = weighted_df.sum(axis=1)
 
-    # Normalize to 0-100
-    risk_index = 100 * (
-        (risk_index_raw - risk_index_raw.min()) /        
-        (risk_index_raw.max() - risk_index_raw.min())
-    )
-
     # Output
     df_result = df.loc[df_out.index].copy()
 
@@ -109,7 +108,6 @@ def pca_risk_index(
         df_result[f"{col}_weighted"] = weighted_df[col]
 
     df_result["Risk_Index_Raw"] = risk_index_raw
-    df_result["Risk_Index_Normalized"] = risk_index
 
     weights = pd.Series(loadings, index=df_out.columns)
     explained_var = pca.explained_variance_ratio_[0]
@@ -124,7 +122,6 @@ def equal_weight_risk_index(
     risk_columns,
     direction_map=None,
     log_transform_cols=None,
-    normalize=True
 ):
 
     df_out = df[risk_columns].copy()
@@ -150,13 +147,6 @@ def equal_weight_risk_index(
 
     # Equal-weight index
     index = X_scaled.mean(axis=1)
-
-    # Normalize
-    if normalize:
-        index = 100 * (
-            (index - index.min()) /
-            (index.max() - index.min())
-        )
 
     # Output
     df_result = df.loc[df_out.index].copy()
@@ -259,7 +249,8 @@ if __name__ == "__main__":
     print(df_pca_risk)
 
     os.makedirs("./backend/temp_df", exist_ok=True)
-    df_pca_risk.to_parquet("./backend/temp_df/df_risk.parquet")
+    df_equal_weight_risk.to_parquet("./backend/temp_df/df_equal_weight_risk.parquet")
+    df_pca_risk.to_parquet("./backend/temp_df/df_pca_risk.parquet")
 
 
 
