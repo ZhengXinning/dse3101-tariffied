@@ -2358,7 +2358,7 @@ if st.session_state.show_chat and col_chat is not None:
                     reply = get_assistant_response(st.session_state.chat_messages)
                     st.session_state.chat_messages.append({"role": "assistant", "content": reply})
                 except Exception as e:
-                    st.error(f"Chat error: {e}")
+                    st.session_state.chat_messages.append({"role": "assistant", "content": f"⚠️ Error: {e}"})
             st.rerun()
         
         if st.session_state.chat_messages:
