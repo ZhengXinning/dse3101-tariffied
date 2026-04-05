@@ -965,7 +965,7 @@ def get_assistant_response(messages_history: list) -> str:
     context = build_dashboard_context()
     system = SYSTEM_PROMPT.format(context=context)
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-haiku-4-5-20251001",
         max_tokens=1000,
         system=system,
         messages=messages_history,
@@ -2354,8 +2354,11 @@ if st.session_state.show_chat and col_chat is not None:
         if user_input and user_input.strip():
             st.session_state.chat_messages.append({"role": "user", "content": user_input.strip()})
             with st.spinner("Thinking…"):
-                reply = get_assistant_response(st.session_state.chat_messages)
-            st.session_state.chat_messages.append({"role": "assistant", "content": reply})
+                try:
+                    reply = get_assistant_response(st.session_state.chat_messages)
+                    st.session_state.chat_messages.append({"role": "assistant", "content": reply})
+                except Exception as e:
+                    st.error(f"Chat error: {e}")
             st.rerun()
         
         if st.session_state.chat_messages:
