@@ -1,0 +1,15 @@
+pandas
+numpy
+streamlit
+matplotlib
+streamlit-folium
+folium
+plotly
+feedparser
+pycountry
+anthropic
+python-dotenv
+statsmodels
+scikit-learn
+requests
+easyDataverse
