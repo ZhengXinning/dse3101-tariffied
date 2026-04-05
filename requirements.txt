@@ -6,6 +6,7 @@ streamlit-folium
 folium
 plotly
 feedparser
+fastparquet
 pycountry
 anthropic
 python-dotenv
