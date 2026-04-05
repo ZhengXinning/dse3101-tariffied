@@ -227,25 +227,25 @@ def gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
 
     # Build and fit the OLS model on the training data
     if predict:
-      train_df, test_df = train_test_split(
-          model_df, test_size=test_size, random_state=random_state
-      )
+        train_df, test_df = train_test_split(
+            model_df, test_size=test_size, random_state=random_state
+        )
 
-      model = smf.ols(formula, data=train_df)
-      results = model.fit()
+        model = smf.ols(formula, data=train_df)
+        results = model.fit()
 
-      # Predict on test set (log scale)
-      test_df['predicted_ln_exportflow'] = results.predict(test_df)
+        # Predict on test set (log scale)
+        test_df['predicted_ln_exportflow'] = results.predict(test_df)
 
-      # Convert back to original scale (trade flow)
-      test_df['predicted_exportflow'] = np.exp(test_df['predicted_ln_exportflow'])
+        # Convert back to original scale (trade flow)
+        test_df['predicted_exportflow'] = np.exp(test_df['predicted_ln_exportflow'])
 
-      return results, test_df
+        return results, test_df
 
     else:
-      model = smf.ols(formula, data=model_df)
-      results = model.fit()
-      return results
+        model = smf.ols(formula, data=model_df)
+        results = model.fit()
+        return results
 
 # Baseline gravity model WITHOUT geopolitical distance
 def base_gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
@@ -275,8 +275,6 @@ def base_gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
     # Add small constant to avoid log(0) if Tariff can be 0 or very small
     model_df['ln_tariff'] = np.log(model_df['Tariff'] + 0.0001)
 
-    # Split the data into training and testing sets
-
     # Define the regression formula based on the gravity model
     formula = (
         "ln_exportflow ~ ln_reporter_gdp_per_capita + ln_partner_gdp_per_capita + ln_distcap + "
@@ -286,25 +284,25 @@ def base_gravity_model(df_input, predict=False, test_size=0.2, random_state=42):
 
     # Build and fit the OLS model on the training data
     if predict:
-      train_df, test_df = train_test_split(
-          model_df, test_size=test_size, random_state=random_state
-      )
+        train_df, test_df = train_test_split(
+            model_df, test_size=test_size, random_state=random_state
+        )
 
-      model = smf.ols(formula, data=train_df)
-      results = model.fit()
+        model = smf.ols(formula, data=train_df)
+        results = model.fit()
 
-      # Predict on test set (log scale)
-      test_df['predicted_ln_exportflow'] = results.predict(test_df)
+        # Predict on test set (log scale)
+        test_df['predicted_ln_exportflow'] = results.predict(test_df)
 
-      # Convert back to original scale (trade flow)
-      test_df['predicted_exportflow'] = np.exp(test_df['predicted_ln_exportflow'])
+        # Convert back to original scale (trade flow)
+        test_df['predicted_exportflow'] = np.exp(test_df['predicted_ln_exportflow'])
 
-      return results, test_df
+        return results, test_df
 
     else:
-      model = smf.ols(formula, data=model_df)
-      results = model.fit()
-      return results
+        model = smf.ols(formula, data=model_df)
+        results = model.fit()
+        return results
 
 # Configuration
 countries_config = {
