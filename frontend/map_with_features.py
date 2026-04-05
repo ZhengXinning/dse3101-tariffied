@@ -900,7 +900,7 @@ def build_dashboard_context():
         for d in ctx_comparison:
             lines.append(
                 f"  - {d['Country']} | Rank #{d['Rank']} | Risk Index: {d['Risk Index']:.2f} | "
-                f"Actual vs Expected: {d['Actual vs Expected']:.0f}% | "
+                f"Actual vs Expected: {d['Actual over Expected']:.0f}% | "
                 f"Imports: {d['Imports %']:.2f}% | Exports: {d['Exports %']:.2f}%"
             )
     else:
