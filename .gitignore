@@ -1,5 +1,6 @@
 # untracked files
 .env
+.streamlit/secrets.toml
 .DS_Store
 data/WorldReportedTariffAgainstSGPraw
 data/WorldReportedTariffAgainstCHNraw
