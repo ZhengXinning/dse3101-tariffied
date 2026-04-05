@@ -32,11 +32,9 @@ risk_columns = [
 # Direction map: -1 for variables where higher values indicate higher risk 
 # +1 for the opposite
 direction_map = {
-    "transptCost": -1,
-    "fxChange": -1,
-    "stateVisits": -1,
-    "partEvents": -1,
-    "partFatalities": -1,  
+    "IdealPointDistance": -1, 
+    "repFatalities": -1,
+    "repEvents": -1
 }
 
 log_cols = [
@@ -51,7 +49,7 @@ def pca_risk_index(
     risk_columns,
     direction_map=None,
     log_transform_cols=None,
-    anchor_variable=None,
+    anchor_variable="partFatalities",
     return_all=True
 ):
 
@@ -100,7 +98,7 @@ def pca_risk_index(
     weighted_df = X_scaled_df.mul(loadings, axis=1)
     risk_index_raw = weighted_df.sum(axis=1)
 
-    # Output
+    # original df with risk index
     df_result = df.loc[df_out.index].copy()
 
     # Add weighted columns
@@ -241,7 +239,7 @@ if __name__ == "__main__":
     risk_columns=risk_columns,
     direction_map=direction_map,
     log_transform_cols=log_cols,
-    anchor_variable="partner_fatalities")
+    anchor_variable="partFatalities")
 
     print(df_equal_weight_risk)
     print(weights)
