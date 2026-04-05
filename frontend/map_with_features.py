@@ -1246,8 +1246,8 @@ with tab1:
     })
 
     bar = px.bar(agg_tradevol, x="origin", y="value", color="type", barmode = "group",
-                title = "Visual Comparison of the 3 Types of Export Volumes",
-                labels = {"origin": "Origin Country", "value": "Total Export Volume (USD)", "type": "Trade Volume Type"},
+                title = "Comparison of Export Volumes (2015-2024)",
+                labels = {"origin": "Origin Country", "value": "Total Export Volume (USD) (log scale)", "type": "Trade Volume Type"},
                 color_discrete_map={
                     "Actual": "#7DA8FF",
                     "Baseline": "#F9D97A",
@@ -1261,15 +1261,61 @@ with tab1:
         title = dict(font_size=20, x=0.5, xanchor="center", y=0.97, yanchor="top")
     )
 
+    bar.update_yaxes(type = "log", tickvals=[1e11, 1e12], ticktext=["100B", "1T"])
+
     st.plotly_chart(bar, use_container_width=True)
+
+    st.info("""
+            - Both China and the USA significantly under-trade relative to model expectations.
+            - Singapore shows the largest proportional gap relative to its trade size.
+            """)
+
+    st.markdown("---")
 
     # Risk Index info
     st.markdown("### The Risk Index")
     st.markdown("""
-    The risk index is adapted from the Geopolitical Annual Trade Risk Index (GATRI), a metric that integrates geopolitical tensions and global trade dynamics to quantify global trade risk. In this application, the risk index is constructed at the bilateral level, allowing for comparison across countries and industries. \n
-    A lower risk index value suggests greater trade compatibility, while a higher value reflects a higher probability of exposure to trade-related risks.\n
-    The risk index incorporates economic, political and security-related indicators, such as transport costs, ideal point distance and violent events. You may choose to customise your own indicators in the Indicators tab.
+    The risk index is adapted from the Geopolitical Annual Trade Risk Index (GATRI), a metric that integrates geopolitical tensions and global trade dynamics to quantify global trade risk. In this application, the risk index is constructed at the bilateral level, indicating the level of trade risk between two countries. \n
+    The risk index incorporates economic, political and security-related indicators in its calculation, such as transport costs, ideal point distance, violent events and more. To customise these indicators, navigate to the **Indicators tab**.\n
+    The value of the risk index ranges from 0 to 100. A lower risk index value suggests greater trade compatibility, while a higher value reflects a higher probability of exposure to trade-related risks. We define the values as follows:\n
+    - **0-30:** Low Risk
+    - **31-70:** Medium Risk
+    - **71-100:** High Risk
     """, unsafe_allow_html=True)
+
+    hist = px.histogram(
+        df,
+        x="risk_index",
+        title="Distribution of Risk Index Values (2021)"
+    )
+
+    hist.update_layout(
+        xaxis_title = "Risk Index",
+        yaxis_title = "Number of Bilateral Trade Relationships",
+        margin = dict(l=0, r=0, t=40, b=0),
+        title = dict(font_size=20, x=0.5, xanchor="center", y=0.97, yanchor="top")
+    )
+
+    hist.update_traces(
+        marker_color = "#7DA8FF",
+        opacity = 1,
+        marker_line_width = 1,
+        marker_line_color = "#2E2E2E",
+        xbins=dict(start=0, end=100, size=5)
+    )
+
+    hist.add_vline(x=30, line_dash="dash", line_color="grey")
+    hist.add_vline(x=70, line_dash="dash", line_color="grey")
+
+    hist.add_vrect(x0=0, x1=30, fillcolor="rgba(39, 174, 96, 0.12)", line_width=0, layer="below")
+    hist.add_vrect(x0=30, x1=70, fillcolor="yellow", opacity=0.1, line_width=0, layer="below")
+    hist.add_vrect(x0=70, x1=100, fillcolor="rgba(231, 76, 60, 0.12)", line_width=0, layer="below")
+
+    hist.update_xaxes(dtick=10)
+
+    st.plotly_chart(hist, use_container_width=True)
+
+    st.info("The distribution is right-skewed, with most bilateral trade relationships falling within the low to medium risk range.")
 
 # -------------------------------
 # Map & Charts Tab
