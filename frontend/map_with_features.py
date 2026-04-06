@@ -20,13 +20,17 @@ import feedparser
 from pathlib import Path
 import anthropic
 import os
-from dotenv import load_dotenv
 
 #BASE_DIR = Path(__file__).resolve().parent
 #file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
 
-load_dotenv()
-client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
+def get_client():
+    if "DSE3101_KEY" not in st.secrets:
+        st.error("API key not configured.")
+        st.stop()
+    return anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
+client = get_client()
+# client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
@@ -312,7 +316,7 @@ def extract_policy_from_article(title, all_origins, all_countries, all_industrie
     found_countries = detect_countries_in_text(text, all_countries)
 
     # Pick origin: prefer a found origin, else default to first origin
-    origin_result = found_origins[0]
+    origin_result = found_origins[0] if found_origins else all_origins[0]
 
     # Pick partner: first found country that differs from origin
     partner_candidates = [c for c in found_countries if c != origin_result]
@@ -2411,7 +2415,8 @@ with st.sidebar:
             detected_in_origins = set(detect_countries_in_text(title_lower, all_origins))
             detected_in_partners = set(detect_countries_in_text(title_lower, all_countries))
             all_detected = detected_in_origins | detected_in_partners
-            has_countries = len(all_detected) >= 2
+            partner_candidates = detected_in_partners - detected_in_origins
+            has_countries = len(detected_in_origins) >= 1 and len(partner_candidates) >= 1
 
             st.markdown(f"""
 <div style="margin-bottom:6px;">
