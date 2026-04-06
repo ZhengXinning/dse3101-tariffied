@@ -24,11 +24,13 @@ import os
 #BASE_DIR = Path(__file__).resolve().parent
 #file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
 
+@st.cache_resource
 def get_client():
     if "DSE3101_KEY" not in st.secrets:
         st.error("API key not configured.")
         st.stop()
     return anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
+
 client = get_client()
 # client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
