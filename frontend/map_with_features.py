@@ -1320,7 +1320,7 @@ with tab1:
     hist.update_xaxes(dtick=10)
 
     st.plotly_chart(hist, use_container_width=True)
-    st.info("The distribution is right-skewed, with most bilateral trade relationships falling within the low to medium risk range.")
+    st.info("The distribution is right-skewed, with most bilateral trade relationships falling in higher risk ratings.")
 # -------------------------------
 # Map & Charts Tab
 # -------------------------------
