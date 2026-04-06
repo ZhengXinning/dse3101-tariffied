@@ -32,7 +32,7 @@ def get_client():
     return anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
 #client = get_client()
-#client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
+client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
