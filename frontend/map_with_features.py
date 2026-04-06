@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 #file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
 
 load_dotenv()
-client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
+#client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
@@ -839,9 +839,8 @@ div.block-container {
     max-width: 85%;
     font-size: 13px;
 }
-</style>
 
-  
+</style>
 """, unsafe_allow_html=True)
 
 
@@ -849,7 +848,7 @@ _title_col, _fab_col = st.columns([5, 1])
 with _title_col:
     st.markdown("""
 <div style="margin-top: 20px;">
-    <h2>Singapore Trade Opportunity Dashboard</h2>
+    <h2>Trade Opportunity Dashboard</h2>
     <div class="subtitle">
         Identify high-potential trade partners based on risk and sector strength
     </div>
@@ -2104,7 +2103,7 @@ with tab2:
             if best_opportunity:
                 lines.append(
                     f"**{best_opportunity}** stands out as the top untapped opportunity — "
-                    f"low risk and below-average trade volume {industry_str} {region_str}, "
+                    f"below-average risk and trade volume as compared to other partners {industry_str} {region_str}, "
                     f"suggesting room to grow the relationship."
                 )
             
@@ -2165,11 +2164,46 @@ with tab4:
     
     st.markdown("### Trade Policy Simulation")
     st.write("""
-    Test how changes in trade conditions affect flows between countries by **adjusting the policy sliders (e.g. tariffs, GDP per capita, trade distance), and launching a scenario**. You can add multiple policies to see combined effects.
+    Test how changes in trade conditions affect flows between countries by **adjusting the policy sliders and launching a scenario**. You can add multiple policies to see combined effects.
     The % impact on export trade will be estimated based on the modified gravity model.
-
-    Results will update in the Map & Charts tab, where you can compare updates to trade, export as % of GDP, and Actual over Expected export flows. 
+ 
+    What are the variables in the modified gravity model that you can adjust and what do they mean for trade?
     """)
+    
+    cols = st.columns(5)
+
+    titles = ["Origin GDP per capita", "Partner GDP per capita", "Trade Distance", "Export Tariffs", "Geopolitical Distance"]
+
+    descriptions = [
+        "Exporting country’s economic strength and production capacity.",
+        "Importing country’s income level and demand for goods.",
+        "Proxy for transport costs and geographic barriers.",
+        "Taxes that reduce international competitiveness.",
+        "Political differences that weaken trade ties."
+    ]
+
+    for col, title, desc in zip(cols, titles, descriptions):
+        with col:
+            st.markdown(f"""
+            <div style="
+                background: linear-gradient(135deg, #C6A0FF, #E6D8FF);
+                padding: 12px;
+                border-radius: 12px;
+                font-size: 12px;
+                line-height: 1.4;
+                color: #1F1F1F;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+                height: 100%;
+            ">
+                <div style="font-weight:700; font-size:13px; margin-bottom:6px;">
+                    {title}
+                </div>
+                {desc}
+            </div>
+            """, unsafe_allow_html=True)
+    st.write("")  # one line gap
+    st.write("Results will update in the Map & Charts tab, where you can compare updates to trade, export as % of GDP, and Actual over Expected export flows.")
+
     if st.session_state.last_news_policy:
         news_title = st.session_state.last_news_policy
         short_title = news_title[:60] + "…" if len(news_title) > 60 else news_title
