@@ -1370,6 +1370,7 @@ with tab2:
             index=default_origin_idx,
             key="selected_origin"
         )
+    #restrict regions to only those with data
     df_O=df[df["origin"]==origin]
     # Region Searchbox
     regions = ["All"] + sorted(df_O["region"].unique()) # list of regions
@@ -1381,7 +1382,7 @@ with tab2:
             options=regions,
             default=["All"]  # empty = "All"
         )
-
+    
     # Industry multiselect
     industries = ["All"] + sorted(df_O["industry"].dropna().unique())
 
