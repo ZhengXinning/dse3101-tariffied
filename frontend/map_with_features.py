@@ -993,10 +993,10 @@ with col_main:
 # Dictionary of Indicators
 INDICATORS = {
     "Transport Cost": "transptCost_weighted",
-    "COUNTERPART/REF Exchange Pct Change":"fxChange_weighted",
-    "Ideal Point distance": "IdealPointDistance_weighted",
-    "Origin Country fatalities": "repFatalities_weighted",
-    "Partner Country fatalities":"partFatalities_weighted",
+    "Exchange Rate Change (%)":"fxChange_weighted",
+    "Ideal Point Distance": "IdealPointDistance_weighted",
+    "Origin Country Fatalities": "repFatalities_weighted",
+    "Partner Country Fatalities":"partFatalities_weighted",
     "Origin Country Violent events": "repEvents_weighted",
     "Partner Country Violent events": "partEvents_weighted",
     "Total FDI": "totalFdi_weighted",
@@ -1243,7 +1243,7 @@ with tab1:
         "baseline_exports": "Baseline",
         "predicted_exports": "Expected"
     })
-
+    
     bar = px.bar(agg_tradevol, x="origin", y="value", color="type", barmode = "group",
                 title = "Comparison of Export Volumes (2015-2024)",
                 labels = {"origin": "Origin Country", "value": "Total Export Volume (USD) (log scale)", "type": "Trade Volume Type"},
@@ -1320,7 +1320,33 @@ with tab1:
     hist.update_xaxes(dtick=10)
 
     st.plotly_chart(hist, use_container_width=True)
-    st.info("The distribution is right-skewed, with most bilateral trade relationships falling in higher risk ratings.")
+
+    st.info("The distribution is left-skewed, with most bilateral trade relationships falling in higher risk ratings.")
+
+    st.markdown("---")
+    
+    # Data info
+    st.markdown("### About the Data")
+    st.markdown("This application utlises data from 2015 to 2024 for the building of models. For consistency and data completeness, the visualisations and analysis presented in this dashboard are based only on 2021 data.")
+
+    st.markdown("#### Data Sources")
+
+    st.markdown("""
+    | Indicator | Specific Aspect Measured | Source |
+    |----------|------------------------|--------|
+    | GDP | GDP in USD (2015 prices) | [World Bank](https://data.worldbank.org/indicator/NY.GDP.MKTP.KD) |
+    | Population | Yearly population count | World Bank | 
+    | Tariff |  | [WTO](https://ttd.wto.org/en/profiles/singapore) | 
+    | Exports | FOB export value | [UN Comtrade](https://comtradeplus.un.org/) |
+    | Geographical Distance | Distance between capitals | CEPII |
+    | Geopolitical Distance | UNGA voting-based ideal point distance | [Erik Voeten Dataverse](https://doi.org/10.7910/DVN/LEJUQZ) | 
+    | Foreign Direct Investment | Net direct investment | IMF | 
+    | Exchange Rate | End-of-period LCU/USD | [IMF](https://data.imf.org/en/Data-Explorer?datasetUrn=IMF.STA:ER(4.0.1)) |
+    | Political Violence Events | Yearly event count | [ACLED](https://acleddata.com/) |
+    | Fatalities | Yearly fatalities | [ACLED](https://acleddata.com/) | 
+    | State Visits | Bilateral visits per year | [COLT](https://doi.org/10.7910/DVN/HJK7DN) | 
+    """)
+
 # -------------------------------
 # Map & Charts Tab
 # -------------------------------
