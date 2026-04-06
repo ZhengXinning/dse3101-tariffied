@@ -31,8 +31,8 @@ def get_client():
         st.stop()
     return anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
-client = get_client()
-# client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
+#client = get_client()
+#client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
@@ -1370,9 +1370,9 @@ with tab2:
             index=default_origin_idx,
             key="selected_origin"
         )
-
+    df_O=df[df["origin"]==origin]
     # Region Searchbox
-    regions = ["All"] + sorted(df["region"].unique()) # list of regions
+    regions = ["All"] + sorted(df_O["region"].unique()) # list of regions
 
     # Region multiselect
     with col2:
@@ -1383,7 +1383,7 @@ with tab2:
         )
 
     # Industry multiselect
-    industries = ["All"] + sorted(df["industry"].dropna().unique())
+    industries = ["All"] + sorted(df_O["industry"].dropna().unique())
 
     with col3:
         selected_industries = st.multiselect(
@@ -1478,7 +1478,7 @@ with tab2:
     def compute_scores(df, risk_col):
         df = df.copy()
         df_valid = df.dropna(subset=[risk_col])
-
+        
         # Recompute weights within the filtered set only
         df_valid = df_valid.copy()
         df_valid["industry_weight"] = (
@@ -1489,8 +1489,10 @@ with tab2:
         grouped = df_valid.groupby("country").apply(
             lambda x: (x[risk_col] * x["industry_weight"]).sum() / x["industry_weight"].sum()
         )
-
-        return grouped.sort_values()
+        if df.empty:
+            return pd.Series()
+        else:
+            return grouped.sort_values()
 
     # Ranking
     def get_top_n(df, risk_col, n=5):
@@ -1508,6 +1510,8 @@ with tab2:
     base_df = df_sim[df_sim["origin"] == origin]
     if "All" not in selected_regions:
         base_df = base_df[base_df["region"].isin(selected_regions)]
+    if "All" not in selected_industries:
+        base_df = base_df[base_df["industry"].isin(selected_industries)]
     
     # best trading partners (lowest risk score)
     top5_countries = get_top_n(base_df, risk_col)
@@ -1557,7 +1561,7 @@ with tab2:
     # -------------------------------
     # Remove self trade
     df_filtered = filtered[filtered["country"] != origin]
-
+    
     # Standardise Top 5 to use weighted risk by industry (in line with UI, filtering above)
     top5 = compute_scores(df_filtered, risk_col).head(5).index.tolist()
 
@@ -1600,8 +1604,12 @@ with tab2:
     # -------------------------------
     # Compute thresholds from the filtered data BEFORE the marker loop
     scores = list(country_scores.values())
-    q25 = np.percentile(scores, 25)
-    q75 = np.percentile(scores, 75)
+    if scores==[]:
+        q25=0
+        q75=0
+    else:
+        q25 = np.percentile(scores, 25)
+        q75 = np.percentile(scores, 75)
 
     def get_color(score, q25=q25, q75=q75):
         if score <= q25:
@@ -1974,7 +1982,7 @@ with tab2:
 
         # Use df_sim (policy-applied) and map display names back for labeling
         base = df_sim[df_sim["origin"] == origin].copy()
-
+        
         # Apply filters
         # Region filter
         if "All" not in selected_regions:
@@ -1986,8 +1994,8 @@ with tab2:
         
         # Split usage
         scatter_base = base.copy()
-
-        reference_df = base.copy()  # same filters, just no country restriction
+        reference_df = base.copy()
+          # same filters, just no country restriction
 
         # Trading Partner filter
         if selected_countries:
