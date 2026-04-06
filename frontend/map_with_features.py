@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 #file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
 
 load_dotenv()
-#client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
+client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
@@ -1273,19 +1273,24 @@ with tab1:
 
     # Risk Index info
     st.markdown("### The Risk Index")
-    st.markdown("""
+
+    # Compute quartile thresholds from full dataset
+    q25_global = np.percentile(df["risk_index"].dropna(), 25)
+    q75_global = np.percentile(df["risk_index"].dropna(), 75)
+
+    st.markdown(f"""
     The risk index is adapted from the Geopolitical Annual Trade Risk Index (GATRI), a metric that integrates geopolitical tensions and global trade dynamics to quantify global trade risk. In this application, the risk index is constructed at the bilateral level, indicating the level of trade risk between two countries. \n
     The risk index incorporates economic, political and security-related indicators in its calculation, such as transport costs, ideal point distance, violent events and more. To customise these indicators, navigate to the **Indicators tab**.\n
-    The value of the risk index ranges from 0 to 100. A lower risk index value suggests greater trade compatibility, while a higher value reflects a higher probability of exposure to trade-related risks. We define the values as follows:\n
-    - **0-30:** Low Risk
-    - **31-70:** Medium Risk
-    - **71-100:** High Risk
+    The value of the risk index ranges from 0 to 100. A lower risk index value suggests greater trade compatibility, while a higher value reflects a higher probability of exposure to trade-related risks. Risk thresholds are quartile-based: Low Risk (≤ {q25_global:.0f}), Medium Risk ({q25_global:.0f}–{q75_global:.0f}), High Risk (> {q75_global:.0f}).\n
+    - **0 – {q25_global:.0f} (bottom 25%):** Low Risk
+    - **{q25_global:.0f} – {q75_global:.0f} (middle 50%):** Medium Risk
+    - **{q75_global:.0f} – 100 (top 25%):** High Risk
     """, unsafe_allow_html=True)
 
     hist = px.histogram(
-        df,
-        x="risk_index",
-        title="Distribution of Risk Index Values (2021)"
+       df,
+       x="risk_index",
+       title="Distribution of Risk Index Values (2021)"
     )
 
     hist.update_layout(
@@ -1303,19 +1308,19 @@ with tab1:
         xbins=dict(start=0, end=100, size=5)
     )
 
-    hist.add_vline(x=30, line_dash="dash", line_color="grey")
-    hist.add_vline(x=70, line_dash="dash", line_color="grey")
-
-    hist.add_vrect(x0=0, x1=30, fillcolor="rgba(39, 174, 96, 0.12)", line_width=0, layer="below")
-    hist.add_vrect(x0=30, x1=70, fillcolor="yellow", opacity=0.1, line_width=0, layer="below")
-    hist.add_vrect(x0=70, x1=100, fillcolor="rgba(231, 76, 60, 0.12)", line_width=0, layer="below")
+    # Quartile-based vlines and shading
+    hist.add_vline(x=q25_global, line_dash="dash", line_color="grey",
+                   annotation_text=f"Q1 ({q25_global:.0f})", annotation_position="top right")
+    hist.add_vline(x=q75_global, line_dash="dash", line_color="grey",
+                   annotation_text=f"Q3 ({q75_global:.0f})", annotation_position="top right")
+    hist.add_vrect(x0=0, x1=q25_global, fillcolor="rgba(39, 174, 96, 0.12)", line_width=0, layer="below")
+    hist.add_vrect(x0=q25_global, x1=q75_global, fillcolor="yellow", opacity=0.1, line_width=0, layer="below")
+    hist.add_vrect(x0=q75_global, x1=100, fillcolor="rgba(231, 76, 60, 0.12)", line_width=0, layer="below")
 
     hist.update_xaxes(dtick=10)
 
     st.plotly_chart(hist, use_container_width=True)
-
     st.info("The distribution is right-skewed, with most bilateral trade relationships falling within the low to medium risk range.")
-
 # -------------------------------
 # Map & Charts Tab
 # -------------------------------
@@ -1437,19 +1442,23 @@ with tab2:
             return sorted(df1["country_display"].unique())
         return sorted(df1[df1["region"].isin(selected_regions)]["country_display"].unique())
     
-    # Industry weighted score   
-    # Avoid the apply() entirely and use a more stable aggregation
+    # a weighted average of only the industries that have data
     def compute_scores(df, risk_col):
-        df_NA=df[df[risk_col].isna()]
-        final_NA=(df_NA[risk_col] * df_NA["industry_weight"]).groupby(df["country"]).sum().sort_values(ascending=True)
-        df_noNA=df.dropna(subset=risk_col)
-        final_noNA=(df_noNA[risk_col] * df_noNA["industry_weight"]).groupby(df["country"]).sum().sort_values(ascending=True)
-        combined=pd.concat([final_noNA,final_NA])
-        return (
-            combined
-            
-            
-            )
+        df = df.copy()
+        df_valid = df.dropna(subset=[risk_col])
+
+        # Recompute weights within the filtered set only
+        df_valid = df_valid.copy()
+        df_valid["industry_weight"] = (
+            df_valid.groupby("country")["exports_vol"]
+            .transform(lambda x: x / x.sum())
+        )
+
+        grouped = df_valid.groupby("country").apply(
+            lambda x: (x[risk_col] * x["industry_weight"]).sum() / x["industry_weight"].sum()
+        )
+
+        return grouped.sort_values()
 
     # Ranking
     def get_top_n(df, risk_col, n=5):
@@ -1533,7 +1542,6 @@ with tab2:
         }), include_groups = False)
         .to_dict("index")
     )
-     
 
     # -------------------------------
     # Arrow function
@@ -1558,13 +1566,18 @@ with tab2:
     # -------------------------------
     # Colours
     # -------------------------------
-    def get_color(score):
-        if score <= 30:
-            return "#269E54"   # green
-        elif score <= 70:
+    # Compute thresholds from the filtered data BEFORE the marker loop
+    scores = list(country_scores.values())
+    q25 = np.percentile(scores, 25)
+    q75 = np.percentile(scores, 75)
+
+    def get_color(score, q25=q25, q75=q75):
+        if score <= q25:
+            return "#269E54"   # green - bottom 25% = lowest risk
+        elif score <= q75:
             return "#E8BE3F"   # yellow
         else:
-            return "#EE4A4D"   # red
+            return "#EE4A4D"   # red - top 25% = highest risk
         
 
     # -------------------------------
@@ -1586,7 +1599,7 @@ with tab2:
     m = folium.Map(
         location=[20, 0],
         zoom_start=2,
-        tiles="CartoDB Voyager"
+        tiles="Esri.WorldStreetMap"
     )
 
     comparison_data = []
@@ -1605,7 +1618,7 @@ with tab2:
         endLA = row["latitude"]
         endLO = row["longitude"]
         risk_message=""
-        if row[risk_col]>0:
+        if country_scores[country]>0:
             risk_message=""
         else:
             risk_message="No risk data found"
@@ -1696,7 +1709,7 @@ with tab2:
             <hr style="margin:6px 0;">
 
             <div>Rank: <b>#{rank}</b></div>
-            <div>Risk Index: <b>{row[risk_col]:.2f}</b></div>
+            <div>Risk Index: <b>{country_scores[country]:.2f}</b></div>
             <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{risk_message:.30s}</b></div>
             <div>Actual over Expected: <b>{weighted_ae:.0f}%</b></div>
 
@@ -1738,7 +1751,7 @@ with tab2:
             "Rank": rank,
             "Country": row["country_display"],
             "ISO3": row["partner_iso"],
-            "Risk Index": row[risk_col],
+            "Risk Index": country_scores[country],
             "Actual over Expected": weighted_ae,
             "Imports %": imports_vol,
             "Exports %": exports_vol,
