@@ -2471,8 +2471,8 @@ with st.sidebar:
             filter_terms = [origin.lower()]
             if country:
                 filter_terms += [c.lower() for c in country]
-            if region != "All":
-                filter_terms.append(region.lower())
+            if regions != "All":
+                filter_terms.append(regions.lower())
             def news_relevance(a):
                 text = (a["title"] + " " + a.get("summary", "")).lower()
                 return -sum(term in text for term in filter_terms)
