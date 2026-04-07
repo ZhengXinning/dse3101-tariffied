@@ -31,8 +31,8 @@ def get_client():
         st.stop()
     return anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
-#client = get_client()
-client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
+client = get_client()
+# client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
@@ -946,7 +946,7 @@ def build_dashboard_context():
     return "\n".join(lines)
 
 
-SYSTEM_PROMPT = """You are a knowledgeable Trade Assistant embedded inside the Trade Opportunity Dashboard.
+SYSTEM_PROMPT = """You are a knowledgeable Trade Assistant embedded inside the Singapore Trade Opportunity Dashboard.
 Your role is to help users understand trade data, interpret risk indices, compare trading partners, \
 and reason about policy simulation outcomes.
 
@@ -956,8 +956,8 @@ precise, insightful answers.
 
 Guidelines:
 - Be concise but thorough. Use bullet points when listing multiple items.
-- When discussing risk, remind users that Risk Index 0–42 (bottom 25%): Low Risk (green), 42–81 (middle 50%): Medium Risk (yellow), 81–100 (top 25%): High Risk (red).
-- Actual vs Expected Trade <100% means untapped trade opportunity; >100% means successful specialisation but may suggest neglect in other markets.
+- When discussing risk, remind users that Risk Index 0–30 = low (green), 31–70 = medium (yellow), 71–100 = high (red).
+- Actual vs Expected Trade <100% means untapped trade opportunity; >100% means potential overtrading.
 - If asked about something outside the dataset, say so clearly and suggest what the user could explore on the dashboard.
 - Do not make up data. Only use figures provided in the dashboard context below.
 
@@ -1333,25 +1333,24 @@ with tab1:
     
     # Data info
     st.markdown("### About the Data")
-    st.markdown("The underlying models for this application utlises data from 2015 to 2024. For consistency and data completeness, the visualisations and analysis presented in this dashboard are based only on 2021 data.")
+    st.markdown("This application utlises data from 2015 to 2024 for the building of models. For consistency and data completeness, the visualisations and analysis presented in this dashboard are based only on 2021 data.")
 
     st.markdown("#### Data Sources")
 
     st.markdown("""
     | Indicator | Specific Aspect Measured | Source |
     |----------|------------------------|--------|
-    | GDP | GDP in USD (2015 price level) | [World Bank](https://data.worldbank.org/indicator/NY.GDP.MKTP.KD) |
-    | Population | Yearly population count | [World Bank](https://data.worldbank.org/indicator/SP.POP.TOTL) | 
-    | Tariff | Export tariffs | [WTO](https://ttd.wto.org/en/profiles/singapore) | 
+    | GDP | GDP in USD (2015 prices) | [World Bank](https://data.worldbank.org/indicator/NY.GDP.MKTP.KD) |
+    | Population | Yearly population count | World Bank | 
+    | Tariff |  | [WTO](https://ttd.wto.org/en/profiles/singapore) | 
     | Exports | FOB export value | [UN Comtrade](https://comtradeplus.un.org/) |
-    | Geographical Distance | Geographical distance between capital cities | [CEPII](https://www.cepii.fr/cepii/en/bdd_modele/bdd_modele_item.asp?id=6) |
-    | Geopolitical Distance | Ideal point distance based on UNGA voting patterns | [Erik Voeten Dataverse](https://doi.org/10.7910/DVN/LEJUQZ) | 
-    | Transportation Cost | CIF/FOB Margin | [OECD](https://data-explorer.oecd.org/vis?lc=en&df[ds]=StiDisseminateFinalDMZ&df[id]=DSD_ITIC%2540DF_ITIC&df[ag]=OECD.SDD.TPS&dq=AUS...._T.A.&pd=2%2C0%2C1%2C6%2C%25%2C2%2CC&to[TIME_PERIOD]=false&vw=ov) | 
-    | Foreign Direct Investment | Net direct investment | [IMF](https://data.imf.org/en/Data-Explorer?datasetUrn=IMF.STA:DIP(12.0.1)) | 
-    | Exchange Rate | End-of-period annual exchange rate (Domestic Currency/USD) | [IMF](https://data.imf.org/en/Data-Explorer?datasetUrn=IMF.STA:ER(4.0.1)) |
-    | Political Violence Events | Yearly event count of political violence events | [ACLED](https://acleddata.com/) |
-    | Fatalities | Yearly count of recorded fatalities | [ACLED](https://acleddata.com/) | 
-    | State Visits | Number of visits between each country pair yearly | [COLT](https://doi.org/10.7910/DVN/HJK7DN) | 
+    | Geographical Distance | Distance between capitals | CEPII |
+    | Geopolitical Distance | UNGA voting-based ideal point distance | [Erik Voeten Dataverse](https://doi.org/10.7910/DVN/LEJUQZ) | 
+    | Foreign Direct Investment | Net direct investment | IMF | 
+    | Exchange Rate | End-of-period LCU/USD | [IMF](https://data.imf.org/en/Data-Explorer?datasetUrn=IMF.STA:ER(4.0.1)) |
+    | Political Violence Events | Yearly event count | [ACLED](https://acleddata.com/) |
+    | Fatalities | Yearly fatalities | [ACLED](https://acleddata.com/) | 
+    | State Visits | Bilateral visits per year | [COLT](https://doi.org/10.7910/DVN/HJK7DN) | 
     """)
 
 # -------------------------------
@@ -1371,10 +1370,9 @@ with tab2:
             index=default_origin_idx,
             key="selected_origin"
         )
-    #restrict regions to only those with data
-    df_O=df[df["origin"]==origin]
+
     # Region Searchbox
-    regions = ["All"] + sorted(df_O["region"].unique()) # list of regions
+    regions = ["All"] + sorted(df["region"].unique()) # list of regions
 
     # Region multiselect
     with col2:
@@ -1383,9 +1381,9 @@ with tab2:
             options=regions,
             default=["All"]  # empty = "All"
         )
-    
+
     # Industry multiselect
-    industries = ["All"] + sorted(df_O["industry"].dropna().unique())
+    industries = ["All"] + sorted(df["industry"].dropna().unique())
 
     with col3:
         selected_industries = st.multiselect(
@@ -1480,7 +1478,7 @@ with tab2:
     def compute_scores(df, risk_col):
         df = df.copy()
         df_valid = df.dropna(subset=[risk_col])
-        
+
         # Recompute weights within the filtered set only
         df_valid = df_valid.copy()
         df_valid["industry_weight"] = (
@@ -1491,10 +1489,8 @@ with tab2:
         grouped = df_valid.groupby("country").apply(
             lambda x: (x[risk_col] * x["industry_weight"]).sum() / x["industry_weight"].sum()
         )
-        if df.empty:
-            return pd.Series()
-        else:
-            return grouped.sort_values()
+
+        return grouped.sort_values()
 
     # Ranking
     def get_top_n(df, risk_col, n=5):
@@ -1512,8 +1508,6 @@ with tab2:
     base_df = df_sim[df_sim["origin"] == origin]
     if "All" not in selected_regions:
         base_df = base_df[base_df["region"].isin(selected_regions)]
-    if "All" not in selected_industries:
-        base_df = base_df[base_df["industry"].isin(selected_industries)]
     
     # best trading partners (lowest risk score)
     top5_countries = get_top_n(base_df, risk_col)
@@ -1563,7 +1557,7 @@ with tab2:
     # -------------------------------
     # Remove self trade
     df_filtered = filtered[filtered["country"] != origin]
-    
+
     # Standardise Top 5 to use weighted risk by industry (in line with UI, filtering above)
     top5 = compute_scores(df_filtered, risk_col).head(5).index.tolist()
 
@@ -1606,12 +1600,8 @@ with tab2:
     # -------------------------------
     # Compute thresholds from the filtered data BEFORE the marker loop
     scores = list(country_scores.values())
-    if scores==[]:
-        q25=0
-        q75=0
-    else:
-        q25 = np.percentile(scores, 25)
-        q75 = np.percentile(scores, 75)
+    q25 = np.percentile(scores, 25)
+    q75 = np.percentile(scores, 75)
 
     def get_color(score, q25=q25, q75=q75):
         if score <= q25:
@@ -1659,7 +1649,11 @@ with tab2:
         display_country = row["country_display"]
         endLA = row["latitude"]
         endLO = row["longitude"]
-        
+        risk_message=""
+        if country_scores[country]>0:
+            risk_message=""
+        else:
+            risk_message="No risk data found"
         # Weighted AE
         total_weight = country_data["industry_weight"].sum()
         if total_weight > 0:
@@ -1748,6 +1742,7 @@ with tab2:
 
             <div>Rank: <b>#{rank}</b></div>
             <div>Risk Index: <b>{country_scores[country]:.2f}</b></div>
+            <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{risk_message:.30s}</b></div>
             <div>Actual over Expected: <b>{weighted_ae:.0f}%</b></div>
 
             <div>Imports: <b>{imports_vol:.2f}%</b></div>
@@ -1793,6 +1788,7 @@ with tab2:
             "Imports %": imports_vol,
             "Exports %": exports_vol,
             "industry_html": industry_html,
+            "risk_message" : risk_message,
             "trade_message" : trade_message
 
         })
@@ -1952,6 +1948,7 @@ with tab2:
                     </div>
                     <div style="color: gray; font-size:15px;margin-bottom: 5px;"> Rank: #{data['Rank']}</div>
                     <div style="margin-bottom: 3px;"> Risk Index: <span style="color:{text_color};"><b>{data['Risk Index']:.2f}</span></b></div>
+                    <div style="margin-bottom: 3px;"><span style="color:Red;"><b>{data['risk_message']:.30s}</b></div>
                     <div style="margin-bottom: 3px;"> Actual over Expected: <b>{data['Actual over Expected']:.0f}%</b></div>
                     <div style="margin-bottom: 3px;"> Imports: {data['Imports %']:.2f}%</div>
                     <div style="margin-bottom: 3px;">Exports: {data['Exports %']:.2f}%</div>
@@ -1977,7 +1974,7 @@ with tab2:
 
         # Use df_sim (policy-applied) and map display names back for labeling
         base = df_sim[df_sim["origin"] == origin].copy()
-        
+
         # Apply filters
         # Region filter
         if "All" not in selected_regions:
@@ -1989,8 +1986,8 @@ with tab2:
         
         # Split usage
         scatter_base = base.copy()
-        reference_df = base.copy()
-          # same filters, just no country restriction
+
+        reference_df = base.copy()  # same filters, just no country restriction
 
         # Trading Partner filter
         if selected_countries:
@@ -2410,21 +2407,25 @@ if st.session_state.show_chat and col_chat is not None:
 
         st.divider()
 
-        if not st.session_state.chat_messages:
-            st.markdown(
-                "<div style='color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;'>"
-                "Type a question below to get started.</div>",
-                unsafe_allow_html=True
-            )
-        for msg in st.session_state.chat_messages:
-            if msg["role"] == "user":
+        chat_height = 500  # adjust to taste
+        msg_container = st.container(height=chat_height)
+
+        with msg_container:
+            if not st.session_state.chat_messages:
                 st.markdown(
-                    f'<div style="display:flex; justify-content:flex-end; margin:6px 0;">'
-                    f'<div class="chat-user">{msg["content"]}</div></div>',
+                    "<div style='color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;'>"
+                    "Type a question below to get started.</div>",
                     unsafe_allow_html=True
                 )
-            else:
-                st.markdown(msg["content"])
+            for msg in st.session_state.chat_messages:
+                if msg["role"] == "user":
+                    st.markdown(
+                        f'<div style="display:flex; justify-content:flex-end; margin:6px 0;">'
+                        f'<div class="chat-user">{msg["content"]}</div></div>',
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.markdown(msg["content"])
 
         st.divider()
 
