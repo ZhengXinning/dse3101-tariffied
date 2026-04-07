@@ -23,11 +23,11 @@ import os
 @st.cache_resource
 def get_client():
     if "DSE3101_KEY" not in st.secrets:
-        st.error("API key not configured.")
-        st.stop()
+        return None
     return anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
 client = get_client()
+
 
 # Read data
 BASE_DIR = Path(__file__).resolve().parent
@@ -940,6 +940,8 @@ Current Dashboard State:
 
 
 def get_assistant_response(messages_history: list) -> str:
+    if client is None:
+        return "Chatbot is unavailable."
     context = build_dashboard_context()
     system = SYSTEM_PROMPT.format(context=context)
     response = client.messages.create(
@@ -2338,47 +2340,50 @@ if st.session_state.show_chat and col_chat is not None:
 
         st.divider()
 
-        chat_height = 500  
-        msg_container = st.container(height=chat_height)
+        if client is None: 
+            st.warning("Chatbot is unavailable.")
+        else: 
+            chat_height = 500  
+            msg_container = st.container(height=chat_height)
 
-        with msg_container:
-            if not st.session_state.chat_messages:
-                st.markdown(
-                    "<div style='color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;'>"
-                    "Type a question below to get started.</div>",
-                    unsafe_allow_html=True
-                )
-            for msg in st.session_state.chat_messages:
-                if msg["role"] == "user":
+            with msg_container:
+                if not st.session_state.chat_messages:
                     st.markdown(
-                        f'<div style="display:flex; justify-content:flex-end; margin:6px 0;">'
-                        f'<div class="chat-user">{msg["content"]}</div></div>',
+                        "<div style='color:#9CA3AF; font-size:12px; text-align:center; padding:20px 0;'>"
+                        "Type a question below to get started.</div>",
                         unsafe_allow_html=True
                     )
-                else:
-                    st.markdown(msg["content"])
+                for msg in st.session_state.chat_messages:
+                    if msg["role"] == "user":
+                        st.markdown(
+                            f'<div style="display:flex; justify-content:flex-end; margin:6px 0;">'
+                            f'<div class="chat-user">{msg["content"]}</div></div>',
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.markdown(msg["content"])
 
-        st.divider()
+            st.divider()
 
-        user_input = st.chat_input(
-            "e.g. How do my active policies affect my trade?",
-            key="chat_input"
-        )
+            user_input = st.chat_input(
+                "e.g. How do my active policies affect my trade?",
+                key="chat_input"
+            )
 
-        if user_input and user_input.strip():
-            st.session_state.chat_messages.append({"role": "user", "content": user_input.strip()})
-            with st.spinner("Thinking…"):
-                try:
-                    reply = get_assistant_response(st.session_state.chat_messages)
-                    st.session_state.chat_messages.append({"role": "assistant", "content": reply})
-                except Exception as e:
-                    st.session_state.chat_messages.append({"role": "assistant", "content": f"⚠️ Error: {e}"})
-            st.rerun()
-        
-        if st.session_state.chat_messages:
-            if st.button("Clear Chat", use_container_width=True, key="clear_chat"):
-                st.session_state.chat_messages = []
+            if user_input and user_input.strip():
+                st.session_state.chat_messages.append({"role": "user", "content": user_input.strip()})
+                with st.spinner("Thinking…"):
+                    try:
+                        reply = get_assistant_response(st.session_state.chat_messages)
+                        st.session_state.chat_messages.append({"role": "assistant", "content": reply})
+                    except Exception as e:
+                        st.session_state.chat_messages.append({"role": "assistant", "content": f"⚠️ Error: {e}"})
                 st.rerun()
+            
+            if st.session_state.chat_messages:
+                if st.button("Clear Chat", use_container_width=True, key="clear_chat"):
+                    st.session_state.chat_messages = []
+                    st.rerun()
 
 
 
@@ -2446,7 +2451,10 @@ with st.sidebar:
             if has_countries:
                 pending = st.session_state.pending_news_policy.get(i)
 
-                if pending is None:
+                if client is None:
+                    st.caption("Suggested Policy unavailable.")
+                
+                elif pending is None:
                     if st.button("Suggested Policy", key=f"news_suggest_{i}", use_container_width=True):
                         base = extract_policy_from_article(
                             article["title"], all_origins, all_countries, all_industries
