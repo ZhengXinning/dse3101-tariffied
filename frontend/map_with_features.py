@@ -1454,6 +1454,11 @@ with tab2:
     # -------------------------------
     df_sim = apply_policies(df, st.session_state.policies, coef_map)
 
+    df_origin_all = df_sim[
+        (df_sim["origin"] == origin) & 
+        (df_sim["country"] != origin)
+    ]
+
     #--------------------------------
     # Active risk index indicator
     #--------------------------------
@@ -1478,9 +1483,13 @@ with tab2:
     def compute_scores(df, risk_col):
         df = df.copy()
         df_valid = df.dropna(subset=[risk_col])
-
         # Recompute weights within the filtered set only
         df_valid = df_valid.copy()
+
+        # handle empty case
+        if df_valid.empty:
+            return pd.Series(dtype=float)
+        
         df_valid["industry_weight"] = (
             df_valid.groupby("country")["exports_vol"]
             .transform(lambda x: x / x.sum())
@@ -1528,7 +1537,7 @@ with tab2:
             "Trading Partners", Clist, default=default_list,
             key=f"selected_countries_{risk_col}_{origin}"
         )
-            
+
     # -------------------------------
     # Filtering results
     # -------------------------------
@@ -1559,7 +1568,13 @@ with tab2:
     df_filtered = filtered[filtered["country"] != origin]
 
     # Standardise Top 5 to use weighted risk by industry (in line with UI, filtering above)
-    top5 = compute_scores(df_filtered, risk_col).head(5).index.tolist()
+    scores = compute_scores(df_filtered, risk_col)
+
+    if scores.empty:
+        st.warning("No data available for selected country/industry.")
+        st.stop()
+    else:
+        top5 = scores.head(5).index.tolist()
 
     # Weighted scores
     country_scores = compute_scores(df_filtered, risk_col).to_dict()
@@ -1599,9 +1614,13 @@ with tab2:
     # Colours
     # -------------------------------
     # Compute thresholds from the filtered data BEFORE the marker loop
-    scores = list(country_scores.values())
-    q25 = np.percentile(scores, 25)
-    q75 = np.percentile(scores, 75)
+    global_scores = global_scores = (df_origin_all.groupby("country")[risk_col].mean().dropna())
+
+    if global_scores.empty:
+        q25, q75 = 0, 100  # fallback
+    else:
+        q25 = np.percentile(global_scores.values, 25)
+        q75 = np.percentile(global_scores.values, 75)
 
     def get_color(score, q25=q25, q75=q75):
         if score <= q25:
@@ -1915,7 +1934,8 @@ with tab2:
     # Render map
     # -------------------------------
     st_folium(m, use_container_width=True, height=550)
-
+    st.info("The same risk score can have different colours across origin countries because colours are based on each country’s own distribution and quartiles of risk scores.")  
+    
     # Create comparison cards
     df_compare = pd.DataFrame(comparison_data)
 
@@ -2472,7 +2492,7 @@ with st.sidebar:
             if country:
                 filter_terms += [c.lower() for c in country]
             if regions != "All":
-                filter_terms.append(regions.lower())
+                filter_terms.extend([r.lower() for r in regions])
             def news_relevance(a):
                 text = (a["title"] + " " + a.get("summary", "")).lower()
                 return -sum(term in text for term in filter_terms)
