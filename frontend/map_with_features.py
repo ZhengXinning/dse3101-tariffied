@@ -838,7 +838,7 @@ with _title_col:
 """, unsafe_allow_html=True)
 with _fab_col:
     st.markdown('<div style="margin-top:30px;"></div>', unsafe_allow_html=True)
-    _chat_lbl = "Close" if st.session_state.show_chat else "🤖 Chat"
+    _chat_lbl = "Close" if st.session_state.show_chat else "Chat"
     if st.button(_chat_lbl, key="chat_fab", use_container_width=True):
         st.session_state.show_chat = not st.session_state.show_chat
         st.rerun()
@@ -1594,10 +1594,8 @@ with tab2:
 
     comparison_data = []
 
-    # -------------------------------
+
     # Markers + arrows (TOP 5)
-    # -------------------------------
-    
     for rank, country in enumerate(top5, start=1):
         country_data = df_filtered[df_filtered["country"] == country]
         if country_data.empty:
@@ -1630,7 +1628,7 @@ with tab2:
 
         width = get_arrow_width(arrow_factor)
           
-        # flag_url
+        # Flag_url
         iso3 = row["partner_iso"]
         try:
             iso2 = pycountry.countries.get(alpha_3=iso3).alpha_2
@@ -1639,7 +1637,6 @@ with tab2:
             flag_url = ""
 
         # Industry info section for popup
-
         # Initialize trade message as empty
         trade_message = ""
 
@@ -1751,9 +1748,7 @@ with tab2:
 
         })
 
-    # -------------------------------
     # GeoJSON
-    # -------------------------------
     geojson_path = BASE_DIR / "world_countries.json"
 
     with open(geojson_path, encoding="utf-8") as f:
@@ -1844,9 +1839,7 @@ with tab2:
     ).add_to(m)
 
 
-    # -------------------------------
     # Origin marker
-    # -------------------------------
     # origin_iso and origin_flag_url
     try:
         origin_iso2 = pycountry.countries.get(alpha_3=df[df["origin"] == origin]["origin_iso"].iloc[0]).alpha_2
@@ -1869,9 +1862,7 @@ with tab2:
         )
     ).add_to(m)
 
-    # -------------------------------
     # Render map
-    # -------------------------------
     st_folium(m, use_container_width=True, height=550)
     st.info("The same risk score can have different colours across origin countries because colours are based on each country’s own distribution and quartiles of risk scores.")  
     
@@ -1917,9 +1908,7 @@ with tab2:
             """, unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
 
-    # -------------------------------
     # Charts section
-    # -------------------------------
     with st.expander("", expanded=True):        
         st.markdown("### Trade Insights")
         st.markdown(
@@ -1927,9 +1916,7 @@ with tab2:
             unsafe_allow_html=True
         )
 
-        # -------------------------------
         # Scatter Plot: Risk vs Trade Volume
-        # -------------------------------
 
         # Use df_sim (policy-applied) and map display names back for labeling
         base = df_sim[df_sim["origin"] == origin].copy()
@@ -1966,10 +1953,7 @@ with tab2:
         display_map = df_sim.drop_duplicates("country").set_index("country")["country_display"]
         scatter_df["display_name"] = scatter_df["country"].map(display_map).fillna(scatter_df["country"])
 
-        # -------------------------------
-        # Reference mean: same region & industry as current selection
-        # (uses full df, not just selected countries)
-        # -------------------------------             
+        # Reference mean: same region & industry as current selection       
         reference_agg = (
             reference_df.groupby("country")
             .agg(
@@ -1981,9 +1965,7 @@ with tab2:
         x_mean = reference_agg["trade_value"].mean()
         y_mean = reference_agg["risk_value"].mean()
 
-        # -------------------------------
         # Axis ranges: centre the intersection
-        # -------------------------------
         x_min = scatter_df["trade_value"].min()
         x_max = scatter_df["trade_value"].max()
         y_min = scatter_df["risk_value"].min()
@@ -2028,9 +2010,7 @@ with tab2:
             }
         )
         
-        # -------------------------------
-        # Quadrant shading (added before traces so points render on top)
-        # -------------------------------
+        # Quadrant shading 
         # Bottom-left: low trade vol, low risk → green (opportunity)
         fig.add_shape(type="rect",
             x0=x_range[0], x1=x_mean,
@@ -2066,10 +2046,9 @@ with tab2:
         st.plotly_chart(fig, use_container_width=True)
 
 
-        # -------------------------------
         # Interpretation
-        # -------------------------------
-        if scatter_df.empty: # no data for filtering
+        
+        if scatter_df.empty: 
             st.info("No data for selected filters. Adjust your filters to see trade insights.")
         else:
         
@@ -2122,9 +2101,8 @@ with tab2:
             if lines:
                 st.info("  \n".join(lines))
  
-# -------------------------------
+
 # Indicators Tab
-# -------------------------------
 with tab3:
     st.markdown("### Customise Risk Index Indicators")
     st.write("Create your own risk index by selecting which indicators to include in the calculation. You may observe how the risk index and partner rankings change in the Map & Charts tab.")
@@ -2141,15 +2119,13 @@ with tab3:
         if len(selected_cols) == 0:
             st.error("Select at least one indicator.")
         else:
-            # store only selection (NOT computation)
             st.session_state.selected_cols = selected_cols
             st.session_state.risk_index = "custom_risk_index"
             st.success("Custom Risk Index Generated! Check the Map & Charts tab.")
 
-# -------------------------------
+
 # Trade Policy Tab
-# -------------------------------
-DEFAULT_POLICY_PCT = 0.0 # 0% change
+DEFAULT_POLICY_PCT = 0.0 
 
 policy_vars = [
     "ln_reporter_gdp_per_capita",
@@ -2165,7 +2141,6 @@ for var in policy_vars:
         st.session_state[var] = DEFAULT_POLICY_PCT
 
 with tab4:
-    
     st.markdown("### Trade Policy Simulation")
     st.write("""
     Test how changes in trade conditions affect flows between countries by **adjusting the policy sliders and launching a scenario**. You can add multiple policies to see combined effects.
@@ -2205,7 +2180,7 @@ with tab4:
                 {desc}
             </div>
             """, unsafe_allow_html=True)
-    st.write("")  # one line gap
+    st.write("")  
     st.write("Results will update in the Map & Charts tab, where you can compare updates to trade, export as % of GDP, and Actual over Expected export flows.")
 
     if st.session_state.last_news_policy:
@@ -2221,7 +2196,6 @@ with tab4:
     policy_origin = st.session_state.get("selected_origin")
     with col_a:
         st.markdown("#### Add New Policy")
-        # Origin comes from Tab 1 selection
         
         c1, c2 = st.columns(2)
         with c1:
@@ -2259,7 +2233,7 @@ with tab4:
             st.slider("Geopolitical Distance", -50, 100, value=0, step=1, key="ln_ideal_point_distance")
         
         with r2c3:
-            st.empty() # consistent layout of sliders
+            st.empty() 
 
         # For easier interpretation for user
         st.markdown("""
@@ -2276,10 +2250,10 @@ with tab4:
         for var in policy_vars:
             pct_change = st.session_state[var]
 
-            # convert to multiplier
+            # Convert to multiplier
             multiplier = 1 + pct_change / 100
 
-            # safety (avoid log(0))
+            # Safety (avoid log(0))
             multiplier = max(multiplier, 1e-6)
 
             coef = coef_map.get(var, 0)
@@ -2352,9 +2326,8 @@ with tab4:
             st.session_state.policies = []
             st.rerun()
     
-# -------------------------------
-# Chat Panel (right column, visible when show_chat=True)
-# -------------------------------
+
+# Chat Panel 
 if st.session_state.show_chat and col_chat is not None:
     with col_chat:
         st.markdown("#### Trade Assistant")
@@ -2366,7 +2339,7 @@ if st.session_state.show_chat and col_chat is not None:
 
         st.divider()
 
-        chat_height = 500  # adjust to taste
+        chat_height = 500  
         msg_container = st.container(height=chat_height)
 
         with msg_container:
@@ -2389,7 +2362,7 @@ if st.session_state.show_chat and col_chat is not None:
         st.divider()
 
         user_input = st.chat_input(
-            "e.g. Which country offers the safest trade opportunity?",
+            "e.g. How do my active policies affect my trade?",
             key="chat_input"
         )
 
@@ -2409,9 +2382,8 @@ if st.session_state.show_chat and col_chat is not None:
                 st.rerun()
 
 
-# -------------------------------
-# Live News Section (SIDEBAR)
-# -------------------------------
+
+# Live News Section
 with st.sidebar:
     st.markdown("# WORLD NEWS")
 
@@ -2471,7 +2443,7 @@ with st.sidebar:
 </div>
 """, unsafe_allow_html=True)
 
-            # --- Suggest Policy card ---
+            # Suggest Policy card 
             if has_countries:
                 pending = st.session_state.pending_news_policy.get(i)
 
