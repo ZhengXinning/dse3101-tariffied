@@ -895,13 +895,13 @@ def build_dashboard_context():
                     for k, v in p["policy_vars"].items() if v != 0
                 ) or "no lever changes"
                 lines.append(
-                    f"  - {p['origin']} → {p['country']} ({p['industry']}) | "
+                    f"  - {p['origin']} → {p['country']} |  "
                     f"Levers: {lever_summary} | Estimated trade impact: {p.get('trade_effect', 0):+.1f}%"
                     + (f" [from news: {p['from_news'][:60]}]" if p.get("from_news") else "")
                 )
             else:
                 lines.append(
-                    f"  - {p['origin']} → {p['country']} ({p['industry']}) | "
+                    f"  - {p['origin']} → {p['country']} | "
                     f"Trade x{p.get('trade_multiplier', 0)}, Risk x{p.get('risk_multiplier', 0)}"
                 )
     else:
@@ -2268,7 +2268,6 @@ with tab4:
             st.session_state.policies.append({
                 "origin": policy_origin,
                 "country": policy_country,
-                "industry": ["All"],
                 "policy_vars": {var: st.session_state[var] for var in policy_vars},
                 "trade_effect": trade_effect
             })
