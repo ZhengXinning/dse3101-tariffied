@@ -1,6 +1,4 @@
-# -------------------------------
-# Import libraries
-# -------------------------------
+# Libraries
 import pandas as pd
 import numpy as np
 import streamlit as st
@@ -21,9 +19,7 @@ from pathlib import Path
 import anthropic
 import os
 
-#BASE_DIR = Path(__file__).resolve().parent
-#file_path = BASE_DIR / "dummy_dataset_global_indicators.csv"
-
+# setting up API key
 @st.cache_resource
 def get_client():
     if "DSE3101_KEY" not in st.secrets:
@@ -32,11 +28,12 @@ def get_client():
     return anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
 client = get_client()
-# client = anthropic.Anthropic(api_key=st.secrets["DSE3101_KEY"])
 
+# read data
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
 
+# webscraping and sentiment analysis for live news
 TRADE_KEYWORDS = [
     "trade", "tariff", "geopolit", "sanction", "export", "import",
     "wto", "supply chain", "bilateral", "fta", "free trade", "customs",
@@ -86,7 +83,7 @@ def get_sentiment(text):
     return "neutral"
 
 
-# Keyword → industry display name (must match values in industry_mapping exactly)
+# industry dictionary
 INDUSTRY_KEYWORD_MAP = {
     # Electrical Machinery & Electronics
     "chip": "Electrical Machinery & Electronics",
@@ -235,7 +232,7 @@ INDUSTRY_KEYWORD_MAP = {
     "cobalt": "Ores, Slag & Ash",
 }
 
-# Short-form aliases → exact dataset country name (verified against df["origin"] and df["country"])
+# country aliases for live news detection
 COUNTRY_ALIASES = {
     # USA  (dataset uses "USA" for both reporter and partner)
     "us": "USA", "u.s.": "USA", "america": "USA", "american": "USA", "washington": "USA",
@@ -291,17 +288,13 @@ COUNTRY_ALIASES = {
 }
 
 def detect_countries_in_text(text, all_countries):
-    """
-    Detect dataset country names in text using both direct substring match and
-    alias/short-form match (with word boundaries for short aliases).
-    """
     text_lower = text.lower()
     found = set()
-    # Direct match
+
     for c in all_countries:
         if c.lower() in text_lower:
             found.add(c)
-    # Alias match with word boundaries to avoid partial-word false positives
+
     for alias, country in COUNTRY_ALIASES.items():
         if country in all_countries:
             if re.search(r'\b' + re.escape(alias) + r'\b', text_lower):
@@ -310,30 +303,29 @@ def detect_countries_in_text(text, all_countries):
 
 
 def extract_policy_from_article(title, all_origins, all_countries, all_industries):
-    """Heuristically extract a trade policy from a news article title."""
     text = title.lower()
 
-    # --- Country detection (uses aliases for short forms like US, UK, etc.) ---
+    # country detection
     found_origins = [c for c in detect_countries_in_text(text, all_origins) if c in all_origins]
     found_countries = detect_countries_in_text(text, all_countries)
 
-    # Pick origin: prefer a found origin, else default to first origin
+    # pick origin
     origin_result = found_origins[0] if found_origins else all_origins[0]
 
-    # Pick partner: first found country that differs from origin
+    # pick partner
     partner_candidates = [c for c in found_countries if c != origin_result]
     partner_result = partner_candidates[0] if partner_candidates else (
         [c for c in all_countries if c != origin_result][0]
     )
 
-    # --- Industry detection ---
+    # industry detection
     found_industry = "All"
     for kw, industry in INDUSTRY_KEYWORD_MAP.items():
         if kw in text and industry in all_industries:
             found_industry = industry
             break
 
-    # --- Impact estimation ---
+    # estimate impact
     severe_negative = any(kw in text for kw in [
         "tariff", "sanction", "ban", "embargo", "restriction", "hike", "retaliation", "penalty", "damage",
     ])
@@ -431,8 +423,8 @@ Example (do not copy values blindly):
     except Exception:
         return None
 
-
-@st.cache_data(ttl=300)  # refresh every 5 minutes
+# web scraping
+@st.cache_data(ttl=300)  
 def get_news():
     feeds = [
         ("Reuters Business", "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best"),
@@ -450,12 +442,11 @@ def get_news():
 
     for source, url in feeds:
         feed = feedparser.parse(url)
-        for entry in feed.entries[:20]:  # check more entries per source for keyword filtering
+        for entry in feed.entries[:20]:  
             title = entry.get("title", "")
             summary = entry.get("summary", "")
             text = (title + " " + summary).lower()
             if any(kw in text for kw in TRADE_KEYWORDS):
-                # Parse published datetime
                 published = ""
                 if hasattr(entry, "published_parsed") and entry.published_parsed:
                     t = entry.published_parsed
@@ -474,11 +465,7 @@ def get_news():
 
     return articles
 
-# -------------------------------
 # Load dataset
-# -------------------------------
-#df = pd.read_csv(file_path, encoding='latin1', keep_default_na=False)
-
 df = pd.read_parquet(file_path, engine = "fastparquet") # renaming columns
 df = df.rename(columns={
      "refYear": "year",
@@ -862,7 +849,7 @@ with _title_col:
 """, unsafe_allow_html=True)
 with _fab_col:
     st.markdown('<div style="margin-top:30px;"></div>', unsafe_allow_html=True)
-    _chat_lbl = "Close" if st.session_state.show_chat else "Chat"
+    _chat_lbl = "Close" if st.session_state.show_chat else "🤖 Chat"
     if st.button(_chat_lbl, key="chat_fab", use_container_width=True):
         st.session_state.show_chat = not st.session_state.show_chat
         st.rerun()
@@ -1263,10 +1250,13 @@ with tab1:
     bar.update_layout(
         margin = dict(l=0, r=0, t=60, b=20), 
         legend=dict(title_text = None, orientation="h", yanchor="bottom", y=0.91, x=0.465, xanchor="center", font=dict(size=15), itemwidth=50),
-        title = dict(font_size=20, x=0.5, xanchor="center", y=0.97, yanchor="top")
+        title = dict(font_size=20, x=0.5, xanchor="center", y=0.97, yanchor="top"), 
+        bargap=0.3,    
+        bargroupgap=0.1
     )
 
     bar.update_yaxes(type = "log", tickvals=[1e11, 1e12], ticktext=["100B", "1T"])
+    bar.update_traces(width=0.2)
 
     st.plotly_chart(bar, use_container_width=True)
 
