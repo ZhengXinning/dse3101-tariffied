@@ -19,7 +19,7 @@ from pathlib import Path
 import anthropic
 import os
 
-# setting up API key
+# Setting up API key
 @st.cache_resource
 def get_client():
     if "DSE3101_KEY" not in st.secrets:
@@ -29,11 +29,11 @@ def get_client():
 
 client = get_client()
 
-# read data
+# Read data
 BASE_DIR = Path(__file__).resolve().parent
 file_path = BASE_DIR.parent / "backend" / "temp_df" / "df_final.parquet"
 
-# webscraping and sentiment analysis for live news
+# Webscraping and Sentiment Analysis for live news
 TRADE_KEYWORDS = [
     "trade", "tariff", "geopolit", "sanction", "export", "import",
     "wto", "supply chain", "bilateral", "fta", "free trade", "customs",
@@ -83,7 +83,7 @@ def get_sentiment(text):
     return "neutral"
 
 
-# industry dictionary
+# Industry dictionary
 INDUSTRY_KEYWORD_MAP = {
     # Electrical Machinery & Electronics
     "chip": "Electrical Machinery & Electronics",
@@ -232,7 +232,7 @@ INDUSTRY_KEYWORD_MAP = {
     "cobalt": "Ores, Slag & Ash",
 }
 
-# country aliases for live news detection
+# Country aliases for live news detection
 COUNTRY_ALIASES = {
     # USA  (dataset uses "USA" for both reporter and partner)
     "us": "USA", "u.s.": "USA", "america": "USA", "american": "USA", "washington": "USA",
@@ -305,27 +305,27 @@ def detect_countries_in_text(text, all_countries):
 def extract_policy_from_article(title, all_origins, all_countries, all_industries):
     text = title.lower()
 
-    # country detection
+    # Country detection
     found_origins = [c for c in detect_countries_in_text(text, all_origins) if c in all_origins]
     found_countries = detect_countries_in_text(text, all_countries)
 
-    # pick origin
+    # Pick origin
     origin_result = found_origins[0] if found_origins else all_origins[0]
 
-    # pick partner
+    # Pick partner
     partner_candidates = [c for c in found_countries if c != origin_result]
     partner_result = partner_candidates[0] if partner_candidates else (
         [c for c in all_countries if c != origin_result][0]
     )
 
-    # industry detection
+    # Industry detection
     found_industry = "All"
     for kw, industry in INDUSTRY_KEYWORD_MAP.items():
         if kw in text and industry in all_industries:
             found_industry = industry
             break
 
-    # estimate impact
+    # Estimate impact
     severe_negative = any(kw in text for kw in [
         "tariff", "sanction", "ban", "embargo", "restriction", "hike", "retaliation", "penalty", "damage",
     ])
@@ -423,7 +423,7 @@ Example (do not copy values blindly):
     except Exception:
         return None
 
-# web scraping
+# Web scraping
 @st.cache_data(ttl=300)  
 def get_news():
     feeds = [
@@ -466,7 +466,7 @@ def get_news():
     return articles
 
 # Load dataset
-df = pd.read_parquet(file_path, engine = "fastparquet") # renaming columns
+df = pd.read_parquet(file_path, engine = "fastparquet") 
 df = df.rename(columns={
      "refYear": "year",
      "cmdCode": "industry_code",
@@ -505,29 +505,25 @@ file_path_coef = BASE_DIR.parent / "backend" / "temp_df" / "df_coef.parquet"
 df_coef = pd.read_parquet(file_path_coef, engine="fastparquet")
 coef_map = dict(zip(df_coef["variable"], df_coef["coef"]))
 
-#setting year for the data
+# Setting year for the data
 df=df[df["year"] ==2021] 
-#Normalising the risk
+# Normalising the risk
 risk_max= df["risk_index_raw"].max()
 risk_min= df["risk_index_raw"].min()
 df["risk_index"]=100* ((df["risk_index_raw"]- risk_min)/(risk_max-risk_min))
 
-#Only countries with risk_index are shown
+# Only countries with risk_index are shown
 df=df[df["risk_index"]>=0]
 
-#Created industry weights column which measures export volume over total export
+# Created industry weights column which measures export volume over total export
 df["total_export"]=df.groupby(["origin","country"])["exports_vol"].transform("sum")
 df["industry_weight"]=df["exports_vol"]/df["total_export"]
 
-# -------------------------------
 # Use ISO-3 to match with pycountry and geo json
-# -------------------------------
 df["iso3"] = df["partner_iso"]   # for partner countries
 df["origin_iso3"] = df["origin_iso"]  # for origin
 
-# -------------------------------
-# Standard display names (UI only)
-# -------------------------------
+# Standard display names
 display_names = {
     "KOR": "South Korea",
     "USA": "United States",
@@ -543,7 +539,6 @@ display_names = {
 
 df["country_display"] = df["partner_iso"].map(display_names).fillna(df["country"])
 
-# Mapping: display → actual country name
 display_to_country = (
     df.drop_duplicates("country_display")
       .set_index("country_display")["country"]
@@ -663,9 +658,7 @@ industry_mapping = {
 }
 df["industry"] = df["industry"].map(industry_mapping).fillna(df["industry"].str.split(';').str[0])
 
-# -------------------------------
 # Initialise session state
-# -------------------------------
 if "policies" not in st.session_state:
     st.session_state.policies = []
 
@@ -681,14 +674,10 @@ if "show_chat" not in st.session_state:
 if "pending_news_policy" not in st.session_state:
     st.session_state.pending_news_policy = {}
 
-# -------------------------------
-# Page config
-# -------------------------------
+# Page configuration
 st.set_page_config(layout="wide")
 
-# -------------------------------
-# Global styling (Dashboard style)
-# -------------------------------
+# Global styling 
 st.markdown("""
 <style>
 html, body, [class*="css"]  {
@@ -854,9 +843,7 @@ with _fab_col:
         st.session_state.show_chat = not st.session_state.show_chat
         st.rerun()
 
-# -------------------------------
-# Chatbot helpers
-# -------------------------------
+# Chatbot helper
 def build_dashboard_context():
     try:
         ctx_origin = origin
@@ -902,7 +889,6 @@ def build_dashboard_context():
         lines.append("")
         lines.append("Active Trade Policies:")
         for p in ctx_policies:
-            # Handle both policy formats (manual levers vs legacy multipliers)
             if "policy_vars" in p:
                 lever_summary = ", ".join(
                     f"{k.replace('ln_', '').replace('_', ' ').title()}: {'+' if v > 0 else ''}{v}%"
@@ -965,24 +951,18 @@ def get_assistant_response(messages_history: list) -> str:
     return response.content[0].text
 
 
-# -------------------------------
-# Layout: right column opens when chat is toggled
-# -------------------------------
+# Dashboard Layout with chatbot
 if st.session_state.show_chat:
     col_main, col_chat = st.columns([2.5, 1])
 else:
     col_main = st.container()
     col_chat = None
 
-# -------------------------------
-# Tab Creation
-# -------------------------------
+# Creating tabs
 with col_main:
     tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Map & Charts", "Indicators", "Trade Policies"])
 
-# -------------------------------
 # Preparation for Indicators Tab
-# -------------------------------
 # Dictionary of Indicators
 INDICATORS = {
     "Transport Cost": "transptCost_weighted",
@@ -1019,13 +999,11 @@ if risk_col == "custom_risk_index":
         ci_min = df["custom_risk_index"].min()
         df["custom_risk_index"] = 100 * ((df["custom_risk_index"] - ci_min) / (ci_max - ci_min))
     
-# -------------------------------
-# Helper function to simulate policy setting
-# -------------------------------    
+# Helper function to simulate policy setting    
 def apply_policies(df, policies, coef_map):
     df_sim = df.copy()
 
-    # reset to baseline
+    # Reset to baseline
     df_sim["predicted_exports"] = df["predicted_exports"].copy()
 
     # Apply gravity model effects in log space
@@ -1047,7 +1025,7 @@ def apply_policies(df, policies, coef_map):
 
                     total_log_effect += coef * np.log(multiplier)
 
-        # apply the combined effect of all matching policies to this industry row
+        # Apply the combined effect of all matching policies to this industry row
         df_sim.at[i, "exports_vol"] *= np.exp(total_log_effect)
 
     # Recompute actual vs expected
@@ -1076,9 +1054,7 @@ def apply_policies(df, policies, coef_map):
     return df_sim
 
 
-# -------------------------------
 # Overview Tab
-# -------------------------------
 with tab1:
     # Introduction
     col1, col2 = st.columns([3, 1])
@@ -1221,7 +1197,7 @@ with tab1:
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
     # Grouped Bar Chart
-    # preparing data
+    # Preparing data
     agg_tradevol = (
         df.groupby("origin")[["exports_vol", "baseline_exports", "predicted_exports"]]
         .sum()
@@ -1230,7 +1206,7 @@ with tab1:
               var_name = "type", value_name = "value")
     )
 
-    # rename labels
+    # Rename labels
     agg_tradevol["type"] = agg_tradevol["type"].map({
         "exports_vol": "Actual",
         "baseline_exports": "Baseline",
@@ -1343,9 +1319,8 @@ with tab1:
     | State Visits | Bilateral visits per year | [COLT](https://doi.org/10.7910/DVN/HJK7DN) | 
     """)
 
-# -------------------------------
 # Map & Charts Tab
-# -------------------------------
+
 with tab2:
     # Filters
     col1, col2, col3 = st.columns(3) 
@@ -1362,14 +1337,14 @@ with tab2:
         )
 
     # Region Searchbox
-    regions = ["All"] + sorted(df["region"].unique()) # list of regions
+    regions = ["All"] + sorted(df["region"].unique()) 
 
     # Region multiselect
     with col2:
         selected_regions = st.multiselect(
             "Region",
             options=regions,
-            default=["All"]  # empty = "All"
+            default=["All"]  
         )
 
     # Industry multiselect
@@ -1379,7 +1354,7 @@ with tab2:
         selected_industries = st.multiselect(
             "Industry",
             options=industries,
-            default=["All"]  # empty = "All"
+            default=["All"]  
         )
     
     # Show friendly message and stop the script
@@ -1387,8 +1362,7 @@ with tab2:
         st.warning("Please select at least one region and one industry.")
         st.stop()
     
-    # In case user selectes "All", "Asia", ...
-    # Keep just "All" for consistent selection later
+    # In the case user selectes "All", "Asia", ... , keep just "All" for consistent selection later
     def clean_selection(selection):
         if "All" in selection:
             return ["All"]
@@ -1406,9 +1380,7 @@ with tab2:
     # Row 2: Trading partners spanning same width as the 3 filters above
     col4, colspacer = st.columns([3,1])
 
-    # -------------------------------
-    # Fixed-position legend/info over map
-    # -------------------------------
+    # Legend/info box over map
     st.markdown(
         """
         <style>
@@ -1439,9 +1411,7 @@ with tab2:
         unsafe_allow_html=True
     )
 
-    # -------------------------------
-    # Apply policies (outside tabs so tab1 map always reflects active policies)
-    # -------------------------------
+    # Apply policies (outside tabs so map always reflects active policies)
     df_sim = apply_policies(df, st.session_state.policies, coef_map)
 
     df_origin_all = df_sim[
@@ -1449,19 +1419,14 @@ with tab2:
         (df_sim["country"] != origin)
     ]
 
-    #--------------------------------
     # Active risk index indicator
-    #--------------------------------
     if risk_col == "custom_risk_index":
         st.info("Custom Risk Index active — rankings based on your selected indicators. Go to the Indicators tab to change selection.")
 
-    #--------------------------------
     # Multiselect trading partners
-    #--------------------------------
-
-    # -------------------------------
+    
     # Helpers
-    # -------------------------------
+
     # For UI
     def get_country_list(df, selected_regions,origin):
         df1=df[df["origin"]==origin]
@@ -1469,14 +1434,14 @@ with tab2:
             return sorted(df1["country_display"].unique())
         return sorted(df1[df1["region"].isin(selected_regions)]["country_display"].unique())
     
-    # a weighted average of only the industries that have data
+    # A weighted average of only the industries that have data
     def compute_scores(df, risk_col):
         df = df.copy()
         df_valid = df.dropna(subset=[risk_col])
         # Recompute weights within the filtered set only
         df_valid = df_valid.copy()
 
-        # handle empty case
+        # Handle empty case
         if df_valid.empty:
             return pd.Series(dtype=float)
         
@@ -1496,41 +1461,32 @@ with tab2:
         
         return compute_scores(df, risk_col).head(n).index.tolist()
     
-    # -------------------------------
     # Country list + defaults to display on Trading Partners filter
-    # -------------------------------
-    # controls only countries in user selected regions shows up for user to select
+    # Controls only countries in user selected regions shows up for user to select
     Clist = get_country_list(df, selected_regions,origin)
 
-    # ensure default is specific to user selected origin country
-    # consistent with selected region
+    # Ensure default is specific to user selected origin country and consistent with selected region
     base_df = df_sim[df_sim["origin"] == origin]
     if "All" not in selected_regions:
         base_df = base_df[base_df["region"].isin(selected_regions)]
     
-    # best trading partners (lowest risk score)
+    # Best trading partners (lowest risk score)
     top5_countries = get_top_n(base_df, risk_col)
     
-    # convert to display names
-    # multiselect uses display names
+    # Convert to and multiselect display names
     default_list = (
         base_df.loc[base_df["country"].isin(top5_countries), ["country", "country_display"]]
         .drop_duplicates("country")["country_display"]
         .tolist()
     )
     
-    # User sees a list of countries
-    # Top 5 are pre-selected
-    # User can override
     with col4:
         selected_countries = st.multiselect(
             "Trading Partners", Clist, default=default_list,
             key=f"selected_countries_{risk_col}_{origin}"
         )
 
-    # -------------------------------
-    # Filtering results
-    # -------------------------------
+    # Filtering 
     # Start with origin country
     filtered = df_sim[df_sim["origin"] == origin]
     
@@ -1551,9 +1507,8 @@ with tab2:
         filtered = filtered[filtered["country"].isin(top5)]
         
     
-    # -------------------------------
+
     # Final computation (information to be displayed on map etc)
-    # -------------------------------
     # Remove self trade
     df_filtered = filtered[filtered["country"] != origin]
 
@@ -1580,9 +1535,7 @@ with tab2:
         .to_dict("index")
     )
 
-    # -------------------------------
     # Arrow function
-    # -------------------------------
     def Arrow(path, name, color, width):
         AntPath(
             path,
@@ -1600,14 +1553,12 @@ with tab2:
         max_width = 30
         return min_width + (max_width - min_width) * trade_factor
 
-    # -------------------------------
     # Colours
-    # -------------------------------
     # Compute thresholds from the filtered data BEFORE the marker loop
     global_scores = global_scores = (df_origin_all.groupby("country")[risk_col].mean().dropna())
 
     if global_scores.empty:
-        q25, q75 = 0, 100  # fallback
+        q25, q75 = 0, 100  
     else:
         q25 = np.percentile(global_scores.values, 25)
         q75 = np.percentile(global_scores.values, 75)
@@ -1621,9 +1572,7 @@ with tab2:
             return "#EE4A4D"   # red - top 25% = highest risk
         
 
-    # -------------------------------
     # Map
-    # -------------------------------
     st.markdown("### Global Trade Network")
         
     # Origin coordinates
