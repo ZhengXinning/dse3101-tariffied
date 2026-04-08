@@ -7,6 +7,9 @@ An interactive dashboard is developed to help users:
 - Identify vulnerabilities and opportunities
 - Support trade policy decisions
 
+Preliminary view of what the dashboard looks like and its supporting features:
+![Dashboard Screenshot](frontend/dashboard_screenshot.png)
+
 ## Setup & Run
 The interactive dashboard can be accessed directly via this [link](https://tariffied.streamlit.app/).
 
