@@ -65,8 +65,7 @@ In `gravity_model.py`:
 formula = (
         "ln_exportflow ~ ln_reporter_gdp_per_capita + ln_partner_gdp_per_capita + ln_distcap + "
         "ln_tariff + ln_repPop + ln_partPop + ln_ideal_point_distance"
-        "+ C(cmdCode) + C(refYear) + C(reporterISO) + C(partnerISO)"
-    )
+        "+ C(cmdCode) + C(refYear) + C(reporterISO) + C(partnerISO)")
 ```
 
 The augmented gravity model is used to generate fitted values of bilateral export flows by refitting raw data `df_comb.parquet` as data for prediction in `gravity_model_pred.py`. Predicted trade is obtained by exponentiating the estimated log-linear model. We then compared actual over predicted trade flows to construct a trade gap measure (‘tradeRatio’). Values above 1 indicate “overtrading,” where observed actual trade exceeds model predictions, while values below 1 indicate “undertrading.” These values are calculated and stored together with raw data as a new `df_gravity.parquet` file. The ratio allows us to identify country pairs whose trade relationships are stronger or weaker, thereby highlighting potential inefficiencies and areas where trade relationships could be further developed. 
