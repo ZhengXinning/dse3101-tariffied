@@ -1,4 +1,4 @@
-# Geopolitical Trade Analytics: Gravity Modeling and PCA-Based Risk Index
+# Geopolitical Tensions and Global Trade: Gravity Modeling and PCA-Based Risk Index
 ## Overview
 Global trade has become increasingly shaped by geopolitical tensions and shifting alliances. This project extends the gravity model of trade by incorporating geopolitical alignment and other risk factors to better explain bilateral trade relationships.
 
@@ -22,7 +22,8 @@ streamlit run "C:\Users\<your-directory-path>\dse3101-tariffied\frontend\map_wit
 ```
 Please note that when running the application locally, the chatbot and policy suggestion features will be unavailable by default, as they require a configured API key.
 
-To enable these features, create a .streamlit/secrets.toml file and add your API key as follows: DSE3101_KEY = “your_api_key_here”
+To enable these features, create a `.streamlit/secrets.toml` file and add your API key as follows: 
+`DSE3101_KEY = “your_api_key_here”`
 
 
 ## Repository Structure
@@ -82,9 +83,8 @@ PCA finds the direction (principal component) that captures the most variation a
 The details of PCA construction can be located in `risk_index.py`. Each indicator is first normalised, with PCA conducted on the entire dataset to identify weights for each indicator. The signs of the weights are adjusted to meet empirical expectations. The composite index is then computed as a weighted sum. The resulting index is stored in `df_pca_risk.parquet`, together with the individual weighted component values and the associated dataset. This dataset is then merged with `df_gravity.parquet` in `final_df.py`, alongside other transformations, and output to the frontend as `df_final.parquet`.
 
 ## Pre-processing 
-Industry labels in the pre-loaded dataset by the backend team were simplified to improve readability and usability in the interface (e.g., “Nuclear reactors, boilers, machinery and mechanical appliances; parts thereof” was condensed to “Nuclear Reactors & Machinery"). In addition, country names were standardised across the dataset, GeoJSON, and the pycountry library using ISO3 codes in dataset as a common reference. This ensured consistency between the underlying data and visual components without altering the original dataset entries. As a result, country names are aligned with the GeoJSON used for mapping, enabling consistent display across country tiles, map markers, and filters, while also ensuring the correct national flags are rendered.
+Industry labels in the pre-loaded dataset from `df_final.parquet` were simplified to improve readability and usability in the interface (e.g., “Nuclear reactors, boilers, machinery and mechanical appliances; parts thereof” was condensed to “Nuclear Reactors & Machinery"). In addition, country names were standardised across the dataset, GeoJSON, and the pycountry library using ISO3 codes in dataset as a common reference. This ensured consistency between the underlying data and visual components without altering the original dataset entries. As a result, country names are aligned with the GeoJSON used for mapping, enabling consistent display across country tiles, map markers, and filters, while also ensuring the correct national flags are rendered.
 
 ## References
-
 - World countries GeoJSON file sourced from: https://geojson-maps.kyd.au/  
 - Methodology for generating the GeoJSON (based on Natural Earth data): https://github.com/AshKyd/geojson-regions
