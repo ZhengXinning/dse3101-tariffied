@@ -19,6 +19,7 @@ streamlit run "C:\Users\<your-directory-path>\dse3101-tariffied\frontend\map_wit
 ```
 
 ## Repository Structure
+```
 .
 ├── data/
 │   └── (raw datasets)
@@ -40,6 +41,7 @@ streamlit run "C:\Users\<your-directory-path>\dse3101-tariffied\frontend\map_wit
 ├── .gitignore                 
 ├── requirements.txt
 └── README.md
+```
 
 Users could directly run `map_with_features.py` to access dashboard on localhost as per instructions above, using our team's final models and dataframes.
 
