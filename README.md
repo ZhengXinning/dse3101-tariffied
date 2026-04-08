@@ -60,7 +60,7 @@ Export flows are estimated using a log-linear OLS regression based on a standard
 
 To construct the augmented gravity model, geopolitical distance is included as a variable by using UN General Assembly voting patterns to calculate Ideal Point Estimates. This quantifies the similarity of geopolitical alignment between countries, with a smaller ideal point distance indicating similar interests. 
 
-`gravity_model.py`
+In `gravity_model.py`:
 ```python
 formula = (
         "ln_exportflow ~ ln_reporter_gdp_per_capita + ln_partner_gdp_per_capita + ln_distcap + "
