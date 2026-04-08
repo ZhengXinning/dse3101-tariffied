@@ -33,6 +33,7 @@ To enable these features, create a `.streamlit/secrets.toml` file and add your A
 │   └── (raw datasets)
 ├── frontend/    
 │   ├── check_geojson.py         # Identify countries in dataset with no matching ISOs
+│   ├── dashboard_screenshot.png # Screenshot of frontend output (dashboard) for README
 │   ├── map_with_features.py     # Dashboard / entry point
 │   └── world_countries.json     # GeoJSON file to encode country borders and names
 ├── backend/
