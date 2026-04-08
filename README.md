@@ -17,19 +17,20 @@ cd <your-directory-path>\dse3101-tariffied
 pip install -r requirements.txt
 streamlit run "C:\Users\<your-directory-path>\dse3101-tariffied\frontend\map_with_features.py"
 ```
+Please note that when running the application locally, the chatbot and policy suggestion features will be unavailable by default, as they require a configured API key.
+
+To enable these features, create a .streamlit/secrets.toml file and add your API key as follows: DSE3101_KEY = “your_api_key_here”
+
 
 ## Repository Structure
 ```
 .
 ├── data/
 │   └── (raw datasets)
-├── frontend/
-│   ├── Map.py          
-│   ├── chart + filters.py     
-│   ├── check_geojson.py
-│   ├── filters.py
+├── frontend/    
+│   ├── check_geojson.py         # Identify countries in dataset with no matching ISOs
 │   ├── map_with_features.py     # Dashboard / entry point
-│   └── world_countries.json    
+│   └── world_countries.json     # GeoJSON file to encode country borders and names
 ├── backend/
 │   ├── prepare_data.py          # Data cleaning and transformations
 │   ├── gravity_model.py         # Gravity model
@@ -77,5 +78,10 @@ PCA finds the direction (principal component) that captures the most variation a
 
 The details of PCA construction can be located in `risk_index.py`. Each indicator is first normalised, with PCA conducted on the entire dataset to identify weights for each indicator. The signs of the weights are adjusted to meet empirical expectations. The composite index is then computed as a weighted sum. The resulting index is stored in `df_pca_risk.parquet`, together with the individual weighted component values and the associated dataset. This dataset is then merged with `df_gravity.parquet` in `final_df.py`, alongside other transformations, and output to the frontend as `df_final.parquet`.
 
+## Pre-processing 
+Industry labels in the pre-loaded dataset by the backend team were simplified to improve readability and usability in the interface (e.g., “Nuclear reactors, boilers, machinery and mechanical appliances; parts thereof” was condensed to “Nuclear Reactors & Machinery"). In addition, country names were standardised across the dataset, GeoJSON, and the pycountry library using ISO3 codes in dataset as a common reference. This ensured consistency between the underlying data and visual components without altering the original dataset entries. As a result, country names are aligned with the GeoJSON used for mapping, enabling consistent display across country tiles, map markers, and filters, while also ensuring the correct national flags are rendered.
 
+## References
 
+- World countries GeoJSON file sourced from: https://geojson-maps.kyd.au/  
+- Methodology for generating the GeoJSON (based on Natural Earth data): https://github.com/AshKyd/geojson-regions
