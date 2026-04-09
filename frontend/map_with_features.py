@@ -1301,24 +1301,25 @@ with tab1:
     
     # Data info
     st.markdown("### About the Data")
-    st.markdown("This application utlises data from 2015 to 2024 for the building of models. For consistency and data completeness, the visualisations and analysis presented in this dashboard are based only on 2021 data.")
+    st.markdown("The underlying models for this application utlises data from 2015 to 2024. For consistency and data completeness, the visualisations and analysis presented in this dashboard are based only on 2021 data.")
 
     st.markdown("#### Data Sources")
 
     st.markdown("""
     | Indicator | Specific Aspect Measured | Source |
     |----------|------------------------|--------|
-    | GDP | GDP in USD (2015 prices) | [World Bank](https://data.worldbank.org/indicator/NY.GDP.MKTP.KD) |
-    | Population | Yearly population count | World Bank | 
-    | Tariff |  | [WTO](https://ttd.wto.org/en/profiles/singapore) | 
+    | GDP | GDP in USD (2015 price level) | [World Bank](https://data.worldbank.org/indicator/NY.GDP.MKTP.KD) |
+    | Population | Yearly population count | [World Bank](https://data.worldbank.org/indicator/SP.POP.TOTL) | 
+    | Tariff | Export tariffs | [WTO](https://ttd.wto.org/en/profiles/singapore) |  
     | Exports | FOB export value | [UN Comtrade](https://comtradeplus.un.org/) |
-    | Geographical Distance | Distance between capitals | CEPII |
-    | Geopolitical Distance | UNGA voting-based ideal point distance | [Erik Voeten Dataverse](https://doi.org/10.7910/DVN/LEJUQZ) | 
-    | Foreign Direct Investment | Net direct investment | IMF | 
-    | Exchange Rate | End-of-period LCU/USD | [IMF](https://data.imf.org/en/Data-Explorer?datasetUrn=IMF.STA:ER(4.0.1)) |
-    | Political Violence Events | Yearly event count | [ACLED](https://acleddata.com/) |
-    | Fatalities | Yearly fatalities | [ACLED](https://acleddata.com/) | 
-    | State Visits | Bilateral visits per year | [COLT](https://doi.org/10.7910/DVN/HJK7DN) | 
+    | Geographical Distance | Geographical distance between capital cities | [CEPII](https://www.cepii.fr/cepii/en/bdd_modele/bdd_modele_item.asp?id=6) |
+    | Geopolitical Distance | Ideal point distance based on UNGA voting patterns | [Erik Voeten Dataverse](https://doi.org/10.7910/DVN/LEJUQZ) | 
+    | Transportation Cost | CIF/FOB Margin | [OECD](https://data-explorer.oecd.org/vis?lc=en&df[ds]=StiDisseminateFinalDMZ&df[id]=DSD_ITIC%2540DF_ITIC&df[ag]=OECD.SDD.TPS&dq=AUS...._T.A.&pd=2%2C0%2C1%2C6%2C%25%2C2%2CC&to[TIME_PERIOD]=false&vw=ov) | 
+    | Foreign Direct Investment | Net direct investment | [IMF](https://data.imf.org/en/Data-Explorer?datasetUrn=IMF.STA:DIP(12.0.1)) | 
+    | Exchange Rate | End-of-period annual exchange rate (Domestic Currency/USD) | [IMF](https://data.imf.org/en/Data-Explorer?datasetUrn=IMF.STA:ER(4.0.1)) |
+    | Political Violence Events | Yearly event count of political violence events | [ACLED](https://acleddata.com/) |
+    | Fatalities | Yearly count of recorded fatalities | [ACLED](https://acleddata.com/) | 
+    | State Visits | Number of visits between each country pair yearly | [COLT](https://doi.org/10.7910/DVN/HJK7DN) |
     """)
 
 # Map & Charts Tab
