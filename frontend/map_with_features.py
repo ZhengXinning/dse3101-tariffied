@@ -1178,6 +1178,11 @@ with tab1:
     """, unsafe_allow_html=True)
 
     st.markdown("<i>For more details, please check out the videos below!<i>", unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.video("https://youtu.be/1Zb1NrbMjuE")
+    with col2:
+        st.video("https://youtu.be/vypDwPFpVpk")
 
     col1, col2 = st.columns(2)
 
